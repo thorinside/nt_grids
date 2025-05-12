@@ -1,7 +1,7 @@
 # Makefile for nt_grids Disting NT plugin
 
 # Path to the Disting NT API
-NT_API_PATH := distingNT_API
+NT_API_PATH := ./distingNT_API
 
 # Path to the Mutable Instruments Eurorack submodule
 EURORACK_PATH := eurorack
@@ -13,9 +13,6 @@ EURORACK_PATH := eurorack
 INCLUDE_PATHS = \
     -I. \
     -I$(NT_API_PATH)/include
-    # -I$(GRIDS_PATH) \
-    # -I$(EURORACK_PATH)/avrlib \
-    # -I$(EURORACK_PATH)/stmlib
 
 # Compiler
 CC := arm-none-eabi-c++
