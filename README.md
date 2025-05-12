@@ -140,4 +140,8 @@ This repository includes a [GitHub Actions workflow](.github/workflows/release_n
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE.md](LICENSE.md) file for details. 
+This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE.md](LICENSE.md) file for details.
+
+# Disclaimer
+
+Documentation written by Gemini 2.5 LLM, and may not be factual.
