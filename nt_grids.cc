@@ -35,32 +35,7 @@
 
 // No anonymous namespace, all file-scope symbols below will be static or const static.
 
-struct NtGridsAlgorithm
-{
-  // Standard Disting NT algorithm members (from example)
-  const _NT_parameter *parameters;
-  const _NT_parameterPages *parameterPages;
-
-  // Parameter values (local cache)
-  // This array must be MAX_PARAMS long, as that's what the host expects to RW.
-  // MAX_PARAMS is usually 64, check api.h
-  int32_t v[64];
-
-  // Pointers to inputs/outputs (populated by host)
-  const float *clock_in;
-  const float *reset_in;
-  float *cv_outs[4]; // Changed to 4 for Trig1, Trig2, Trig3, Accent
-
-  // Previous CV input states for edge detection (block-level)
-  float prev_clock_cv_val;
-  float prev_reset_cv_val;
-
-  // You can add any other state your algorithm needs here.
-  // For example, if PatternGenerator was a class instance:
-  // nt_grids_port::grids::PatternGenerator pattern_generator_instance_;
-};
-
-// --- Parameter Definitions ---
+// --- ParameterIndex Enum Definition (Moved before NtGridsAlgorithm) ---
 enum ParameterIndex // File scope, effectively internal to this CU
 {
   // Mode & Global
@@ -101,6 +76,37 @@ enum ParameterIndex // File scope, effectively internal to this CU
   kNumParameters // This should now correctly reflect the total number of parameters
 };
 
+// --- NtGridsAlgorithm Struct Definition ---
+struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
+{
+  // REMOVED: const _NT_parameter *parameters; - Inherited
+  // REMOVED: const _NT_parameterPages *parameterPages; - Inherited
+  // REMOVED: int32_t v[64]; - Inherited as const int16_t* v;
+
+  // Pointers to inputs/outputs (populated by host) - These are specific to our algorithm's direct needs
+  const float *clock_in; // This seems unused if we read directly from busFrames
+  const float *reset_in; // This also seems unused
+
+  // Previous CV input states for edge detection (block-level)
+  float prev_clock_cv_val;
+  float prev_reset_cv_val;
+
+  // State for fixed-duration triggers
+  uint32_t trigger_on_samples_remaining[4]; // Index 0:Trig1, 1:Trig2, 2:Trig3, 3:Accent
+
+  // For UI debugging
+  bool debug_recent_clock_tick;
+  bool debug_recent_reset;
+  bool debug_param_changed_flags[kNumParameters]; // One flag per parameter
+
+  // More detailed clock debugging
+  float debug_current_clock_cv_val;
+  float debug_prev_clock_cv_val_for_debug;
+
+  // You can add any other state your algorithm needs here.
+};
+
+// --- Parameter Definitions (s_parameters array, etc.) ---
 static const char *kEnumModeStrings[] = {"Euclidean", "Drums", NULL};
 static const char *kEnumBooleanStrings[] = {"Off", "On", NULL};
 
@@ -164,12 +170,12 @@ _NT_parameterPages parameterPages = {
 
 // --- Helper: Update Grids PatternGenerator from parameters ---
 // This function must be static as it's a file-scope helper
-static void update_grids_from_params(const int32_t *param_values)
+static void update_grids_from_params(const int16_t *param_values) // Changed to const int16_t*
 {
-  using namespace nt_grids_port::grids; // Keep this using directive local to function if preferred
+  using namespace nt_grids_port::grids;
 
   OutputMode previous_mode = PatternGenerator::current_output_mode();
-  OutputMode new_mode = (OutputMode)param_values[kParamMode];
+  OutputMode new_mode = (OutputMode)param_values[kParamMode]; // param_values are int16_t
 
   if (new_mode != previous_mode)
   {
@@ -179,23 +185,21 @@ static void update_grids_from_params(const int32_t *param_values)
 
   if (current_mode == OUTPUT_MODE_DRUMS)
   {
-    PatternGenerator::settings_[current_mode].options.drums.x = param_values[kParamDrumMapX];
-    PatternGenerator::settings_[current_mode].options.drums.y = param_values[kParamDrumMapY];
-    // Density parameters are 0-255. Assign directly.
-    PatternGenerator::settings_[current_mode].density[0] = param_values[kParamDrumDensity1];
-    PatternGenerator::settings_[current_mode].density[1] = param_values[kParamDrumDensity2];
-    PatternGenerator::settings_[current_mode].density[2] = param_values[kParamDrumDensity3];
+    // Values from param_values are int16_t, PatternGenerator expects uint8_t or similar
+    PatternGenerator::settings_[current_mode].options.drums.x = (uint8_t)param_values[kParamDrumMapX];
+    PatternGenerator::settings_[current_mode].options.drums.y = (uint8_t)param_values[kParamDrumMapY];
+    PatternGenerator::settings_[current_mode].density[0] = (uint8_t)param_values[kParamDrumDensity1];
+    PatternGenerator::settings_[current_mode].density[1] = (uint8_t)param_values[kParamDrumDensity2];
+    PatternGenerator::settings_[current_mode].density[2] = (uint8_t)param_values[kParamDrumDensity3];
   }
   else // OUTPUT_MODE_EUCLIDEAN
   {
     for (int i = 0; i < nt_grids_port::kNumParts; ++i)
     {
-      // Length parameter is 1-32. Assign directly.
-      uint8_t length = param_values[kParamEuclideanLength1 + i];
+      uint8_t length = (uint8_t)param_values[kParamEuclideanLength1 + i];
       PatternGenerator::SetLength(i, length);
 
-      // Fill parameter is 0-255 (density). Assign directly.
-      uint8_t fill_density_param_val = param_values[kParamEuclideanFill1 + i];
+      uint8_t fill_density_param_val = (uint8_t)param_values[kParamEuclideanFill1 + i];
       PatternGenerator::SetFill(i, fill_density_param_val);
     }
   }
@@ -205,8 +209,7 @@ static void update_grids_from_params(const int32_t *param_values)
 
   if (PatternGenerator::chaos_globally_enabled_)
   {
-    // Chaos Amount parameter is 0-255. Assign directly.
-    uint8_t chaos_val = param_values[kParamChaosAmount];
+    uint8_t chaos_val = (uint8_t)param_values[kParamChaosAmount];
     PatternGenerator::settings_[OUTPUT_MODE_DRUMS].options.drums.randomness = chaos_val;
     PatternGenerator::settings_[OUTPUT_MODE_EUCLIDEAN].options.euclidean.chaos_amount = chaos_val;
   }
@@ -243,123 +246,271 @@ static void nt_grids_calculate_requirements(_NT_algorithmRequirements &req, cons
 static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, const _NT_algorithmRequirements &req, const int32_t *specifications)
 {
   NtGridsAlgorithm *alg = new (ptrs.sram) NtGridsAlgorithm();
+  // Initialize inherited members:
   alg->parameters = s_parameters;
   alg->parameterPages = &parameterPages;
 
-  // Initialize parameters from specifications or defaults
-  if (specifications)
-  {
-    for (unsigned i = 0; i < req.numParameters; ++i)
-    {
-      alg->v[i] = specifications[i];
-    }
-  }
-  else
-  {
-    for (unsigned i = 0; i < req.numParameters; ++i)
-    {
-      alg->v[i] = s_parameters[i].def;
-    }
-  }
+  // The host will initialize alg->v (the inherited const int16_t*).
+  // If specifications are provided (e.g., from a preset), the host should use them
+  // to populate alg->v. If specifications is NULL, host should use defaults.
+  // For safety or if direct initialization of PatternGenerator from defaults is desired
+  // before host fully initializes alg->v, one might call update_grids_from_params
+  // with s_parameters[i].def values. However, typical flow is to rely on host
+  // populating alg->v and then calling parameterChanged if needed, or just using alg->v.
 
-  // Initialize CV input/output pointers - THIS IS THE CHALLENGING PART with old API
-  // For now, we assume the host somehow makes these available if parameters are set.
-  // Or, nt_grids_step will have to read from busFrames for CVs.
-  // alg->clock_in = ???
-  // alg->reset_in = ???
-
+  // Initialize algorithm-specific state:
   alg->prev_clock_cv_val = 0.0f;
   alg->prev_reset_cv_val = 0.0f;
 
-  update_grids_from_params(alg->v);
+  for (int i = 0; i < 4; ++i)
+  {
+    alg->trigger_on_samples_remaining[i] = 0;
+  }
+
+  alg->debug_recent_clock_tick = false;
+  alg->debug_recent_reset = false;
+  for (int i = 0; i < kNumParameters; ++i)
+  {
+    alg->debug_param_changed_flags[i] = false; // These flags still make sense for UI debug
+  }
+
+  alg->debug_current_clock_cv_val = -1.0f;
+  alg->debug_prev_clock_cv_val_for_debug = -1.0f;
+
+  // Update PatternGenerator based on initial parameters (now from inherited alg->v, set by host)
+  // This assumes alg->v is populated by the host with either defaults or preset values by this point.
+  update_grids_from_params(alg->v); // alg->v is now const int16_t* from _NT_algorithm
   nt_grids_port::grids::PatternGenerator::Reset();
-  return reinterpret_cast<_NT_algorithm *>(alg);
+  return reinterpret_cast<_NT_algorithm *>(alg); // This cast is fine as NtGridsAlgorithm IS-A _NT_algorithm
 }
 
 // Original Signature for parameterChanged
 static void nt_grids_parameter_changed(_NT_algorithm *self_base, int p_idx)
 {
-  NtGridsAlgorithm *self = reinterpret_cast<NtGridsAlgorithm *>(self_base);
-  if (p_idx >= 0 && p_idx < kNumParameters)
+  // self_base is already _NT_algorithm*. If NtGridsAlgorithm specific members need access, cast:
+  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Changed to static_cast due to inheritance
+
+  if (p_idx >= 0 && p_idx < kNumParameters) // kNumParameters should match the count for self_base->v
   {
-    self->v[p_idx] = self_base->v[p_idx];
+    // No longer need to copy to a local self->v. self_base->v *is* the source of truth.
+    // self->v (inherited) is self_base->v.
+    self->debug_param_changed_flags[p_idx] = true; // Still useful for UI debug
   }
-  update_grids_from_params(self->v);
-  // If CV routing params changed, might need to update clock_in/reset_in if they were manually mapped.
+  update_grids_from_params(self_base->v); // Pass the host's parameter array directly
 }
 
 // Original Signature for step, but with new internal logic
 static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFramesBy4)
 {
-  NtGridsAlgorithm *self = reinterpret_cast<NtGridsAlgorithm *>(self_base);
+  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Use static_cast
   using nt_grids_port::grids::PatternGenerator;
-  int num_frames_total = numFramesBy4 * 4; // Total samples in the block for busFrames indexing
+  int num_frames_total = numFramesBy4 * 4; // Total samples in the block
 
-  // CV Input Handling (once per block) - reading from busFrames
-  const float cv_threshold = 0.5f;
-  float current_clock_cv = 0.0f;
-  float current_reset_cv = 0.0f;
+  // CV Input Handling: Iterate through each sample in the block for edge detection
+  const float cv_threshold = 0.5f;                         // Reverted to 0.5f to resolve compilation issue
+  int clock_bus_idx_param_val = self->v[kParamClockInput]; // self->v is inherited const int16_t*
+  int reset_bus_idx_param_val = self->v[kParamResetInput]; // self->v is inherited const int16_t*
 
-  int clock_bus_idx_param_val = self->v[kParamClockInput];
-  if (clock_bus_idx_param_val > 0 && (clock_bus_idx_param_val - 1) < 28)
+  for (int s_cv = 0; s_cv < num_frames_total; ++s_cv)
   {
-    current_clock_cv = busFrames[(clock_bus_idx_param_val - 1) * num_frames_total + 0];
-  }
+    // Clock Input Detection
+    if (clock_bus_idx_param_val > 0) // Is a bus selected? (1-based)
+    {
+      int clock_bus_array_idx = clock_bus_idx_param_val - 1; // Convert to 0-based for array access
+      if (clock_bus_array_idx < 28)                          // Check if bus index is valid (max 28 buses)
+      {
+        float current_sample_clock_cv = busFrames[clock_bus_array_idx * num_frames_total + s_cv];
 
-  if (current_clock_cv > cv_threshold && self->prev_clock_cv_val <= cv_threshold)
-  {
-    PatternGenerator::TickClock(true);
-  }
-  self->prev_clock_cv_val = current_clock_cv;
+        // Capture values for debugging for the current sample
+        self->debug_current_clock_cv_val = current_sample_clock_cv;
+        self->debug_prev_clock_cv_val_for_debug = self->prev_clock_cv_val; // This is the value from the *previous sample* processing
 
-  int reset_bus_idx_param_val = self->v[kParamResetInput];
-  if (reset_bus_idx_param_val > 0 && (reset_bus_idx_param_val - 1) < 28)
-  {
-    current_reset_cv = busFrames[(reset_bus_idx_param_val - 1) * num_frames_total + 0];
-  }
+        if (current_sample_clock_cv > cv_threshold && self->prev_clock_cv_val <= cv_threshold)
+        {
+          PatternGenerator::TickClock(true);
+          self->debug_recent_clock_tick = true; // Set debug flag
+        }
+        self->prev_clock_cv_val = current_sample_clock_cv;
+      }
+      else
+      {
+        self->prev_clock_cv_val = 0.0f; // Invalid bus, treat as no signal
+      }
+    }
+    else
+    {
+      self->prev_clock_cv_val = 0.0f; // No bus selected, ensure previous state is low
+    }
 
-  if (current_reset_cv > cv_threshold && self->prev_reset_cv_val <= cv_threshold)
-  {
-    PatternGenerator::Reset();
-  }
-  self->prev_reset_cv_val = current_reset_cv;
+    // Reset Input Detection
+    if (reset_bus_idx_param_val > 0) // Is a bus selected? (1-based)
+    {
+      int reset_bus_array_idx = reset_bus_idx_param_val - 1; // Convert to 0-based
+      if (reset_bus_array_idx < 28)                          // Check if bus index is valid (max 28 buses)
+      {
+        float current_sample_reset_cv = busFrames[reset_bus_array_idx * num_frames_total + s_cv];
+        if (current_sample_reset_cv > cv_threshold && self->prev_reset_cv_val <= cv_threshold)
+        {
+          PatternGenerator::Reset();
+          for (int i = 0; i < 4; ++i)
+            self->trigger_on_samples_remaining[i] = 0;
+          self->debug_recent_reset = true; // Set debug flag
+        }
+        self->prev_reset_cv_val = current_sample_reset_cv;
+      }
+      else
+      {
+        self->prev_reset_cv_val = 0.0f; // Invalid bus, treat as no signal
+      }
+    }
+    else
+    {
+      self->prev_reset_cv_val = 0.0f; // No bus selected, ensure previous state is low
+    }
+  } // End of CV input processing loop
 
-  // Get current trigger state from PatternGenerator
+  // Get current trigger state from PatternGenerator (AFTER all potential ticks/resets in this block)
   uint8_t current_pattern_state = PatternGenerator::state_;
+
+  // --- Initiate trigger durations based on new events from PatternGenerator ---
+  const float desired_trigger_duration_seconds = 0.005f; // Shortened to 5ms
+  const uint32_t desired_trigger_samples = static_cast<uint32_t>(desired_trigger_duration_seconds * NT_globals.sampleRate);
+
+  // Only re-evaluate starting triggers if a clock tick happened or if a reset just occurred (state might be initial).
+  // More robustly, check current_pattern_state against ongoing triggers.
+  // If a bit is set in current_pattern_state and the corresponding trigger is not already active, start it.
+
+  // Trig 1 (output bit 0)
+  if ((current_pattern_state & (1 << 0)) && self->trigger_on_samples_remaining[0] == 0)
+  {
+    self->trigger_on_samples_remaining[0] = desired_trigger_samples;
+  }
+  // Trig 2 (output bit 1)
+  if ((current_pattern_state & (1 << 1)) && self->trigger_on_samples_remaining[1] == 0)
+  {
+    self->trigger_on_samples_remaining[1] = desired_trigger_samples;
+  }
+  // Trig 3 (output bit 2)
+  if ((current_pattern_state & (1 << 2)) && self->trigger_on_samples_remaining[2] == 0)
+  {
+    self->trigger_on_samples_remaining[2] = desired_trigger_samples;
+  }
+  // Accent (output bit nt_grids_port::grids::OUTPUT_BIT_ACCENT, which is 1 << 7)
+  // Store in trigger_on_samples_remaining[3]
+  if ((current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT) && self->trigger_on_samples_remaining[3] == 0)
+  {
+    self->trigger_on_samples_remaining[3] = desired_trigger_samples;
+  }
 
   // Main processing loop for each sample in the block
   // Writing outputs to busFrames based on parameter routing
-  const float trigger_on_voltage = 1.0f; // Or 5.0f, depending on Disting standards
+  const float trigger_on_voltage = 1.0f;
   const float trigger_off_voltage = 0.0f;
 
   for (int s = 0; s < num_frames_total; ++s)
   {
-    // Trig 1 Output (Bus defined by kParamOutputTrig1)
-    int bus_idx_trig1 = self->v[kParamOutputTrig1] - 1; // Params are 1-based bus numbers
+    // Trig 1 Output
+    int bus_idx_trig1 = self->v[kParamOutputTrig1] - 1; // self->v is inherited const int16_t*
     if (bus_idx_trig1 >= 0 && bus_idx_trig1 < 28)
     {
-      busFrames[bus_idx_trig1 * num_frames_total + s] = (current_pattern_state & (1 << 0)) ? trigger_on_voltage : trigger_off_voltage;
+      bool replace_mode_trig1 = self->v[kParamOutputTrig1Mode]; // self->v is inherited const int16_t*
+      float value_to_write_trig1;
+      if (self->trigger_on_samples_remaining[0] > 0)
+      {
+        value_to_write_trig1 = trigger_on_voltage;
+        self->trigger_on_samples_remaining[0]--;
+      }
+      else
+      {
+        value_to_write_trig1 = trigger_off_voltage;
+      }
+
+      if (replace_mode_trig1)
+      {
+        busFrames[bus_idx_trig1 * num_frames_total + s] = value_to_write_trig1;
+      }
+      else
+      {
+        busFrames[bus_idx_trig1 * num_frames_total + s] += value_to_write_trig1;
+      }
     }
 
-    // Trig 2 Output (Bus defined by kParamOutputTrig2)
-    int bus_idx_trig2 = self->v[kParamOutputTrig2] - 1;
+    // Trig 2 Output
+    int bus_idx_trig2 = self->v[kParamOutputTrig2] - 1; // self->v is inherited const int16_t*
     if (bus_idx_trig2 >= 0 && bus_idx_trig2 < 28)
     {
-      busFrames[bus_idx_trig2 * num_frames_total + s] = (current_pattern_state & (1 << 1)) ? trigger_on_voltage : trigger_off_voltage;
+      bool replace_mode_trig2 = self->v[kParamOutputTrig2Mode]; // self->v is inherited const int16_t*
+      float value_to_write_trig2;
+      if (self->trigger_on_samples_remaining[1] > 0)
+      {
+        value_to_write_trig2 = trigger_on_voltage;
+        self->trigger_on_samples_remaining[1]--;
+      }
+      else
+      {
+        value_to_write_trig2 = trigger_off_voltage;
+      }
+
+      if (replace_mode_trig2)
+      {
+        busFrames[bus_idx_trig2 * num_frames_total + s] = value_to_write_trig2;
+      }
+      else
+      {
+        busFrames[bus_idx_trig2 * num_frames_total + s] += value_to_write_trig2;
+      }
     }
 
-    // Trig 3 Output (Bus defined by kParamOutputTrig3)
-    int bus_idx_trig3 = self->v[kParamOutputTrig3] - 1;
+    // Trig 3 Output
+    int bus_idx_trig3 = self->v[kParamOutputTrig3] - 1; // self->v is inherited const int16_t*
     if (bus_idx_trig3 >= 0 && bus_idx_trig3 < 28)
     {
-      busFrames[bus_idx_trig3 * num_frames_total + s] = (current_pattern_state & (1 << 2)) ? trigger_on_voltage : trigger_off_voltage;
+      bool replace_mode_trig3 = self->v[kParamOutputTrig3Mode]; // self->v is inherited const int16_t*
+      float value_to_write_trig3;
+      if (self->trigger_on_samples_remaining[2] > 0)
+      {
+        value_to_write_trig3 = trigger_on_voltage;
+        self->trigger_on_samples_remaining[2]--;
+      }
+      else
+      {
+        value_to_write_trig3 = trigger_off_voltage;
+      }
+
+      if (replace_mode_trig3)
+      {
+        busFrames[bus_idx_trig3 * num_frames_total + s] = value_to_write_trig3;
+      }
+      else
+      {
+        busFrames[bus_idx_trig3 * num_frames_total + s] += value_to_write_trig3;
+      }
     }
 
-    // Accent Output (Bus defined by kParamOutputAccent)
-    int bus_idx_accent = self->v[kParamOutputAccent] - 1;
+    // Accent Output
+    int bus_idx_accent = self->v[kParamOutputAccent] - 1; // self->v is inherited const int16_t*
     if (bus_idx_accent >= 0 && bus_idx_accent < 28)
     {
-      busFrames[bus_idx_accent * num_frames_total + s] = (current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT) ? trigger_on_voltage : trigger_off_voltage;
+      bool replace_mode_accent = self->v[kParamOutputAccentMode]; // self->v is inherited const int16_t*
+      float value_to_write_accent;
+      if (self->trigger_on_samples_remaining[3] > 0)
+      {
+        value_to_write_accent = trigger_on_voltage;
+        self->trigger_on_samples_remaining[3]--;
+      }
+      else
+      {
+        value_to_write_accent = trigger_off_voltage;
+      }
+
+      if (replace_mode_accent)
+      {
+        busFrames[bus_idx_accent * num_frames_total + s] = value_to_write_accent;
+      }
+      else
+      {
+        busFrames[bus_idx_accent * num_frames_total + s] += value_to_write_accent;
+      }
     }
   }
 }
@@ -373,32 +524,32 @@ static bool nt_grids_has_custom_ui(_NT_algorithm *self_base)
 
 static void nt_grids_setup_ui(_NT_algorithm *self_base, _NT_float3 &pots)
 {
-  NtGridsAlgorithm *self = reinterpret_cast<NtGridsAlgorithm *>(self_base);
-  bool is_drum_mode = (self->v[kParamMode] == 1);
+  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Use static_cast
+  bool is_drum_mode = (self->v[kParamMode] == 1);                      // self->v is inherited const int16_t*
   if (is_drum_mode)
   {
-    pots[0] = (self->v[kParamDrumDensity1] / 255.0f);
-    pots[1] = (self->v[kParamDrumDensity2] / 255.0f);
-    pots[2] = (self->v[kParamDrumDensity3] / 255.0f);
+    pots[0] = (self->v[kParamDrumDensity1] / 255.0f); // self->v is inherited const int16_t*
+    pots[1] = (self->v[kParamDrumDensity2] / 255.0f); // self->v is inherited const int16_t*
+    pots[2] = (self->v[kParamDrumDensity3] / 255.0f); // self->v is inherited const int16_t*
   }
   else // Euclidean Mode
   {
-    pots[0] = (self->v[kParamEuclideanFill1] / 255.0f);
-    pots[1] = (self->v[kParamEuclideanFill2] / 255.0f);
-    pots[2] = (self->v[kParamEuclideanFill3] / 255.0f);
+    pots[0] = (self->v[kParamEuclideanFill1] / 255.0f); // self->v is inherited const int16_t*
+    pots[1] = (self->v[kParamEuclideanFill2] / 255.0f); // self->v is inherited const int16_t*
+    pots[2] = (self->v[kParamEuclideanFill3] / 255.0f); // self->v is inherited const int16_t*
   }
 }
 
 static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
 {
-  NtGridsAlgorithm *self = reinterpret_cast<NtGridsAlgorithm *>(self_base);
-  bool is_drum_mode = (self->v[kParamMode] == 1);
+  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Use static_cast
+  bool is_drum_mode = (self->v[kParamMode] == 1);                      // self->v is inherited const int16_t*
   uint32_t alg_idx = NT_algorithmIndex(self_base);
   uint32_t param_offset = NT_parameterOffset();
 
   if ((data.buttons & kNT_encoderButtonR) && !(data.lastButtons & kNT_encoderButtonR))
   {
-    int32_t current_mode_val = self->v[kParamMode];
+    int32_t current_mode_val = self->v[kParamMode]; // self->v is inherited const int16_t*
     int32_t new_mode_val = 1 - current_mode_val;
     NT_setParameterFromUi(alg_idx, kParamMode + param_offset, new_mode_val);
     return;
@@ -428,7 +579,7 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
     if (is_drum_mode)
     {
       param_idx_to_change = kParamDrumMapX;
-      current_val = self->v[param_idx_to_change];
+      current_val = self->v[param_idx_to_change]; // self->v is inherited const int16_t*
       min_val = s_parameters[param_idx_to_change].min;
       max_val = s_parameters[param_idx_to_change].max;
       new_val = current_val + data.encoders[0];
@@ -436,7 +587,7 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
     else
     {
       param_idx_to_change = kParamChaosAmount;
-      current_val = self->v[param_idx_to_change];
+      current_val = self->v[param_idx_to_change]; // self->v is inherited const int16_t*
       min_val = s_parameters[param_idx_to_change].min;
       max_val = s_parameters[param_idx_to_change].max;
       new_val = current_val + data.encoders[0] * 5;
@@ -455,7 +606,7 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
     if (is_drum_mode)
     {
       param_idx_to_change = kParamDrumMapY;
-      current_val = self->v[param_idx_to_change];
+      current_val = self->v[param_idx_to_change]; // self->v is inherited const int16_t*
       min_val = s_parameters[param_idx_to_change].min;
       max_val = s_parameters[param_idx_to_change].max;
       new_val = current_val + data.encoders[1];
@@ -463,7 +614,7 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
     else
     {
       param_idx_to_change = kParamEuclideanLength1;
-      current_val = self->v[param_idx_to_change];
+      current_val = self->v[param_idx_to_change]; // self->v is inherited const int16_t*
       min_val = s_parameters[param_idx_to_change].min;
       max_val = s_parameters[param_idx_to_change].max;
       new_val = current_val + data.encoders[1];
@@ -478,74 +629,72 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
 
 static bool nt_grids_draw(_NT_algorithm *self_base)
 {
-  NtGridsAlgorithm *self = reinterpret_cast<NtGridsAlgorithm *>(self_base);
-  bool is_drum_mode = (self->v[kParamMode] == 1);
-  char buffer[32];
+  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Use static_cast
+  bool is_drum_mode = (self->v[kParamMode] == 1);                      // self->v is inherited const int16_t*
+  // char buffer[32]; // Not needed if we are not drawing parameter values
   _NT_textSize textSize = kNT_textNormal;
-  int current_y = 22;
-  const int line_spacing = 10;
+  int current_y = 24;         // Adjusted from 2 to 2 + 22
+  const int line_spacing = 9; // Reduced line spacing slightly
+  char debug_buf[32];         // Buffer for string conversion
 
-  NT_drawText(5, current_y, is_drum_mode ? "Mode: DRUM" : "Mode: EUCLIDEAN", 15, kNT_textLeft, textSize);
+  // --- Debug Info Only ---
+  NT_drawText(5, current_y, self->debug_recent_clock_tick ? "CLK!" : "Clk?", 15, kNT_textLeft, textSize);
+  self->debug_recent_clock_tick = false; // Clear after drawing
+
+  NT_drawText(45, current_y, self->debug_recent_reset ? "RST!" : "Rst?", 15, kNT_textLeft, textSize);
+  self->debug_recent_reset = false; // Clear after drawing
   current_y += line_spacing;
 
-  bool chaos_on = self->v[kParamChaosEnable] != 0;
-  NT_drawText(5, current_y, "Chaos:", 15, kNT_textLeft, textSize);
-  NT_drawText(55, current_y, chaos_on ? "ON" : "OFF", 15, kNT_textLeft, textSize);
-  NT_drawText(95, current_y, "Amt:", 15, kNT_textLeft, textSize);
-  NT_intToString(buffer, self->v[kParamChaosAmount]);
-  NT_drawText(130, current_y, buffer, 15, kNT_textLeft, textSize);
+  // Display Clock Input Bus
+  NT_intToString(debug_buf, self->v[kParamClockInput]); // self->v is inherited const int16_t*
+  NT_drawText(5, current_y, "ClkBus:", 15, kNT_textLeft, textSize);
+  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
+  current_y += line_spacing;
+
+  // Display Current Clock CV
+  NT_floatToString(debug_buf, self->debug_current_clock_cv_val, 2);
+  NT_drawText(5, current_y, "CurCV:", 15, kNT_textLeft, textSize);
+  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
+  current_y += line_spacing;
+
+  // Display Previous Clock CV
+  NT_floatToString(debug_buf, self->debug_prev_clock_cv_val_for_debug, 2);
+  NT_drawText(5, current_y, "PrvCV:", 15, kNT_textLeft, textSize);
+  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
+  current_y += line_spacing;
+
+  NT_drawText(5, current_y, "MdCh:", 15, kNT_textLeft, textSize);
+  NT_drawText(45, current_y, self->debug_param_changed_flags[kParamMode] ? "Y" : "N", 15, kNT_textLeft, textSize);
+  self->debug_param_changed_flags[kParamMode] = false;
+
+  NT_drawText(70, current_y, "ChsCh:", 15, kNT_textLeft, textSize);
+  NT_drawText(120, current_y, self->debug_param_changed_flags[kParamChaosAmount] ? "Y" : "N", 15, kNT_textLeft, textSize);
+  self->debug_param_changed_flags[kParamChaosAmount] = false;
   current_y += line_spacing;
 
   if (is_drum_mode)
   {
-    NT_drawText(5, current_y, "X:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamDrumMapX]);
-    NT_drawText(25, current_y, buffer, 15, kNT_textLeft, textSize);
-    NT_drawText(70, current_y, "Y:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamDrumMapY]);
-    NT_drawText(90, current_y, buffer, 15, kNT_textLeft, textSize);
+    NT_drawText(5, current_y, "XCh:", 15, kNT_textLeft, textSize);
+    NT_drawText(45, current_y, self->debug_param_changed_flags[kParamDrumMapX] ? "Y" : "N", 15, kNT_textLeft, textSize);
+    self->debug_param_changed_flags[kParamDrumMapX] = false;
+    NT_drawText(70, current_y, "YCh:", 15, kNT_textLeft, textSize);
+    NT_drawText(120, current_y, self->debug_param_changed_flags[kParamDrumMapY] ? "Y" : "N", 15, kNT_textLeft, textSize);
+    self->debug_param_changed_flags[kParamDrumMapY] = false;
     current_y += line_spacing;
-
-    NT_drawText(5, current_y, "Density1:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamDrumDensity1]);
-    NT_drawText(100, current_y, buffer, 15, kNT_textLeft, textSize);
-    current_y += line_spacing;
-
-    NT_drawText(5, current_y, "Density2:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamDrumDensity2]);
-    NT_drawText(100, current_y, buffer, 15, kNT_textLeft, textSize);
-    current_y += line_spacing;
-
-    NT_drawText(5, current_y, "Density3:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamDrumDensity3]);
-    NT_drawText(100, current_y, buffer, 15, kNT_textLeft, textSize);
   }
-  else
+  else // Euclidean Mode
   {
-    NT_drawText(5, current_y, "L1:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamEuclideanLength1]);
-    NT_drawText(35, current_y, buffer, 15, kNT_textLeft, textSize);
-    NT_drawText(75, current_y, "F1:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamEuclideanFill1]);
-    NT_drawText(105, current_y, buffer, 15, kNT_textLeft, textSize);
+    NT_drawText(5, current_y, "L1Ch:", 15, kNT_textLeft, textSize);
+    NT_drawText(45, current_y, self->debug_param_changed_flags[kParamEuclideanLength1] ? "Y" : "N", 15, kNT_textLeft, textSize);
+    self->debug_param_changed_flags[kParamEuclideanLength1] = false;
+    // Add other relevant Euclidean encoder targets if needed for debug
+    // e.g., kParamEuclideanLength2, kParamEuclideanLength3 if mapped to other encoders
     current_y += line_spacing;
-
-    NT_drawText(5, current_y, "L2:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamEuclideanLength2]);
-    NT_drawText(35, current_y, buffer, 15, kNT_textLeft, textSize);
-    NT_drawText(75, current_y, "F2:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamEuclideanFill2]);
-    NT_drawText(105, current_y, buffer, 15, kNT_textLeft, textSize);
-    current_y += line_spacing;
-
-    NT_drawText(5, current_y, "L3:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamEuclideanLength3]);
-    NT_drawText(35, current_y, buffer, 15, kNT_textLeft, textSize);
-    NT_drawText(75, current_y, "F3:", 15, kNT_textLeft, textSize);
-    NT_intToString(buffer, self->v[kParamEuclideanFill3]);
-    NT_drawText(105, current_y, buffer, 15, kNT_textLeft, textSize);
   }
-  return false;
+
+  // Intentionally removed all other drawing of parameter values to focus on debug flags.
+
+  return false; // Return false as we are not doing a full custom screen that would hide the top bar.
 }
 
 // --- Factory Definition (must be after all callback definitions it references) ---
