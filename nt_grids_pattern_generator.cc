@@ -103,7 +103,7 @@ namespace nt_grids_port
       options_.output_clock = false;
       // options_.tap_tempo = false; // REMOVED from struct
       options_.gate_mode = false;
-      options_.swing = false;
+      // options_.swing = false; // Removed: Swing functionality is being removed
 
       // Default settings for Drum mode
       settings_[OUTPUT_MODE_DRUMS].options.drums.x = 128;        // Center of map
@@ -150,19 +150,19 @@ namespace nt_grids_port
     // 24PPQN clock and affected by the randomness parameter in drum mode.
     // A full implementation would require delaying specific pulses based on the clock mode.
     // Currently returns 0, effectively disabling swing from this module.
-    int8_t PatternGenerator::swing_amount()
-    {
-      if (!options_.swing)
-        return 0;
-      // Original Grids swing was subtle and tied to its 24PPQN clock structure.
-      // This is a simplified placeholder. A proper swing implementation would
-      // delay every second 16th note (or equivalent based on resolution).
-      // For now, just return a small fixed offset if swing is on.
-      // This would need to be applied to timing of specific pulses.
-      // The Disting NT might have its own swing handling or expect this module to provide timed triggers.
-      // Let's return 0 for now, as applying swing correctly requires deeper integration with the host clock.
-      return 0;
-    }
+    // int8_t PatternGenerator::swing_amount()
+    // {
+    //   if (!options_.swing) // Removed: Swing functionality is being removed
+    //     return 0;
+    //   // Original Grids swing was subtle and tied to its 24PPQN clock structure.
+    //   // This is a simplified placeholder. A proper swing implementation would
+    //   // delay every second 16th note (or equivalent based on resolution).
+    //   // For now, just return a small fixed offset if swing is on.
+    //   // This would need to be applied to timing of specific pulses.
+    //   // The Disting NT might have its own swing handling or expect this module to provide timed triggers.
+    //   // Let's return 0 for now, as applying swing correctly requires deeper integration with the host clock.
+    //   return 0;
+    // }  // Removed: Swing functionality is being removed
 
     // `external_clock_tick = true` signals one tick from the host/external clock source.
     void PatternGenerator::TickClock(bool external_clock_tick)
@@ -285,10 +285,6 @@ namespace nt_grids_port
       if (step_ == 0 && pulse_ == 0)
       { // Generate perturbation only once at the very start of the 32-step sequence (when pulse_ is also 0)
         uint8_t randomness = settings_[OUTPUT_MODE_DRUMS].options.drums.randomness;
-        if (options_.swing)
-        { // Original Grids firmware zeroed randomness if swing was active for drums.
-          randomness = 0;
-        }
         randomness >>= 2; // Scale randomness for perturbation amount
 
         for (uint8_t i = 0; i < kNumParts; ++i)

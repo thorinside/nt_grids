@@ -91,9 +91,8 @@ namespace nt_grids_port
     {
       ClockResolution clock_resolution;
       OutputMode output_mode;
-      bool output_clock; // True if Grids itself should output a clock signal
-      bool gate_mode;    // True for gates, false for triggers
-      bool swing;
+      bool output_clock;            // True if Grids itself should output a clock signal
+      bool gate_mode;               // True for gates, false for triggers
       bool original_grids_clocking; // True to use original Grids sub-tick clocking logic
 
       // pack() and unpack() were for EEPROM storage on the original AVR hardware.
@@ -101,10 +100,6 @@ namespace nt_grids_port
       uint8_t pack() const
       {
         uint8_t byte = clock_resolution;
-        if (!swing)
-        {
-          byte |= 0x08;
-        }
         if (output_clock)
         {
           byte |= 0x20;
@@ -123,7 +118,6 @@ namespace nt_grids_port
       void unpack(uint8_t byte)
       {
         gate_mode = !(byte & 0x80);
-        swing = !(byte & 0x08);
         output_mode = (byte & 0x40) ? OUTPUT_MODE_DRUMS : OUTPUT_MODE_EUCLIDEAN;
         output_clock = byte & 0x20;
         clock_resolution = static_cast<ClockResolution>(byte & 0x7);
@@ -153,14 +147,11 @@ namespace nt_grids_port
       static uint8_t step() { return step_; } // Current step in the main 32-step sequence (0-31)
 
       // --- Option Accessors & Mutators --- Tied to Disting NT parameters
-      static bool swing_active() { return options_.swing; }
-      static int8_t swing_amount(); // Calculates swing offset, definition in .cc
       static bool output_clock_active() { return options_.output_clock; }
       static bool gate_mode_active() { return options_.gate_mode; }
       static OutputMode current_output_mode() { return options_.output_mode; }
       static ClockResolution current_clock_resolution() { return options_.clock_resolution; }
 
-      static void set_swing(bool active) { options_.swing = active; }
       static void set_output_clock_active(bool active) { options_.output_clock = active; }
       static void set_output_mode(OutputMode mode)
       {

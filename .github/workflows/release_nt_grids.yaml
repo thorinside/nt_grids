@@ -33,7 +33,7 @@ jobs:
           echo "Building nt_grids"
           # Assuming the root Makefile builds nt_grids.o and places it in plugins/
           make clean 
-          make nt_grids.o # Or just 'make' if that builds the target
+          make
 
       # Updated artifact preparation for nt_grids
       - name: Prepare directory structure for nt_grids zip
