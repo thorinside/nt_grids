@@ -103,6 +103,8 @@ struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
   float debug_current_clock_cv_val;
   float debug_prev_clock_cv_val_for_debug;
 
+  uint8_t debug_pg_state; // To display PatternGenerator::state_
+
   // You can add any other state your algorithm needs here.
 };
 
@@ -277,6 +279,8 @@ static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, co
   alg->debug_current_clock_cv_val = -1.0f;
   alg->debug_prev_clock_cv_val_for_debug = -1.0f;
 
+  alg->debug_pg_state = 0; // Initialize debug PG state
+
   // Update PatternGenerator based on initial parameters (now from inherited alg->v, set by host)
   // This assumes alg->v is populated by the host with either defaults or preset values by this point.
   update_grids_from_params(alg->v); // alg->v is now const int16_t* from _NT_algorithm
@@ -371,36 +375,65 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
 
   // Get current trigger state from PatternGenerator (AFTER all potential ticks/resets in this block)
   uint8_t current_pattern_state = PatternGenerator::state_;
+  self->debug_pg_state = current_pattern_state; // Store for drawing
 
   // --- Initiate trigger durations based on new events from PatternGenerator ---
   const float desired_trigger_duration_seconds = 0.005f; // Shortened to 5ms
   const uint32_t desired_trigger_samples = static_cast<uint32_t>(desired_trigger_duration_seconds * NT_globals.sampleRate);
 
-  // Only re-evaluate starting triggers if a clock tick happened or if a reset just occurred (state might be initial).
-  // More robustly, check current_pattern_state against ongoing triggers.
-  // If a bit is set in current_pattern_state and the corresponding trigger is not already active, start it.
+  // Trig 1 (output bit 0, array index 0)
+  if (current_pattern_state & (1 << 0))
+  { // Pattern bit is ON
+    if (self->trigger_on_samples_remaining[0] == 0 && self->debug_recent_clock_tick)
+    {
+      self->trigger_on_samples_remaining[0] = desired_trigger_samples;
+    }
+  }
+  else
+  { // Pattern bit is OFF
+    self->trigger_on_samples_remaining[0] = 0;
+  }
 
-  // Trig 1 (output bit 0)
-  if ((current_pattern_state & (1 << 0)) && self->trigger_on_samples_remaining[0] == 0)
-  {
-    self->trigger_on_samples_remaining[0] = desired_trigger_samples;
+  // Trig 2 (output bit 1, array index 1)
+  if (current_pattern_state & (1 << 1))
+  { // Pattern bit is ON
+    if (self->trigger_on_samples_remaining[1] == 0 && self->debug_recent_clock_tick)
+    {
+      self->trigger_on_samples_remaining[1] = desired_trigger_samples;
+    }
   }
-  // Trig 2 (output bit 1)
-  if ((current_pattern_state & (1 << 1)) && self->trigger_on_samples_remaining[1] == 0)
-  {
-    self->trigger_on_samples_remaining[1] = desired_trigger_samples;
+  else
+  { // Pattern bit is OFF
+    self->trigger_on_samples_remaining[1] = 0;
   }
-  // Trig 3 (output bit 2)
-  if ((current_pattern_state & (1 << 2)) && self->trigger_on_samples_remaining[2] == 0)
-  {
-    self->trigger_on_samples_remaining[2] = desired_trigger_samples;
+
+  // Trig 3 (output bit 2, array index 2)
+  if (current_pattern_state & (1 << 2))
+  { // Pattern bit is ON
+    if (self->trigger_on_samples_remaining[2] == 0 && self->debug_recent_clock_tick)
+    {
+      self->trigger_on_samples_remaining[2] = desired_trigger_samples;
+    }
   }
-  // Accent (output bit nt_grids_port::grids::OUTPUT_BIT_ACCENT, which is 1 << 7)
-  // Store in trigger_on_samples_remaining[3]
-  if ((current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT) && self->trigger_on_samples_remaining[3] == 0)
-  {
-    self->trigger_on_samples_remaining[3] = desired_trigger_samples;
+  else
+  { // Pattern bit is OFF
+    self->trigger_on_samples_remaining[2] = 0;
   }
+
+  // Accent (output bit nt_grids_port::grids::OUTPUT_BIT_ACCENT, array index 3)
+  if (current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT)
+  { // Pattern bit is ON
+    if (self->trigger_on_samples_remaining[3] == 0 && self->debug_recent_clock_tick)
+    {
+      self->trigger_on_samples_remaining[3] = desired_trigger_samples;
+    }
+  }
+  else
+  { // Pattern bit is OFF
+    self->trigger_on_samples_remaining[3] = 0;
+  }
+  // Note: self->debug_recent_clock_tick is cleared by the draw function after being displayed,
+  // or effectively per block as it's only set true during clock detection if a new tick occurs.
 
   // Main processing loop for each sample in the block
   // Writing outputs to busFrames based on parameter routing
@@ -660,6 +693,12 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
   // Display Previous Clock CV
   NT_floatToString(debug_buf, self->debug_prev_clock_cv_val_for_debug, 2);
   NT_drawText(5, current_y, "PrvCV:", 15, kNT_textLeft, textSize);
+  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
+  current_y += line_spacing;
+
+  // Display PatternGenerator::state_
+  NT_intToString(debug_buf, self->debug_pg_state);
+  NT_drawText(5, current_y, "PGState:", 15, kNT_textLeft, textSize);
   NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
   current_y += line_spacing;
 
