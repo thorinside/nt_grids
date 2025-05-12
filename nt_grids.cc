@@ -828,7 +828,6 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
     // Build L1:F1, L2:F2, L3:F3 string manually without strcat/strcpy
     char temp_num_str[5]; // Temporary buffer for number conversion
     int buffer_pos = 0;   // Current writing position in the main buffer
-    int len;              // Length of string returned by NT_intToString
 
     // Ensure buffer is initially empty
     buffer[0] = '\0';
@@ -846,26 +845,26 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
 
     // L1
     manual_append("L1: ");
-    len = NT_intToString(temp_num_str, self->v[kParamEuclideanLength1]);
+    NT_intToString(temp_num_str, self->v[kParamEuclideanLength1]);
     manual_append(temp_num_str);
     manual_append(":");
-    len = NT_intToString(temp_num_str, self->v[kParamEuclideanFill1]);
+    NT_intToString(temp_num_str, self->v[kParamEuclideanFill1]);
     manual_append(temp_num_str);
 
     // L2
     manual_append("   L2: ");
-    len = NT_intToString(temp_num_str, self->v[kParamEuclideanLength2]);
+    NT_intToString(temp_num_str, self->v[kParamEuclideanLength2]);
     manual_append(temp_num_str);
     manual_append(":");
-    len = NT_intToString(temp_num_str, self->v[kParamEuclideanFill2]);
+    NT_intToString(temp_num_str, self->v[kParamEuclideanFill2]);
     manual_append(temp_num_str);
 
     // L3
     manual_append("   L3: ");
-    len = NT_intToString(temp_num_str, self->v[kParamEuclideanLength3]);
+    NT_intToString(temp_num_str, self->v[kParamEuclideanLength3]);
     manual_append(temp_num_str);
     manual_append(":");
-    len = NT_intToString(temp_num_str, self->v[kParamEuclideanFill3]);
+    NT_intToString(temp_num_str, self->v[kParamEuclideanFill3]);
     manual_append(temp_num_str);
 
     // Draw the combined string centered on a single row

@@ -1,6 +1,3 @@
 [submodule "distingNT_API"]
 	path = distingNT_API
 	url = https://github.com/expertsleepersltd/distingNT_API.git
-[submodule "eurorack"]
-	path = eurorack
-	url = https://github.com/pichenettes/eurorack.git

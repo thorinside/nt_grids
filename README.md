@@ -10,7 +10,7 @@ A port of Emilie Gillet's renowned Mutable Instruments Grids topographic drum se
 
 This project brings the unique algorithmic drum pattern generation of the original Mutable Instruments Grids module to the Disting NT. Grids is described as a "topographic drum sequencer" - it generates a variety of drum patterns based on continuous interpolation through a "map" of patterns (Drum Mode) or using Euclidean algorithms (Euclidean Mode).
 
-*   **Original Concept & Code:** Emilie Gillet (Mutable Instruments)
+*   **Original Concept & Code:** Emilie Gillet (Mutable Instruments). The original Eurorack module source code can be found [here](https://github.com/pichenettes/eurorack/tree/master/grids).
 *   **Disting NT Port:** Neal Sanche (GitHub: Thorinside)
 
 The original Grids firmware is licensed under the MIT license, however, as this port utilizes the Disting NT SDK which itself appears to use GPL-licensed components (like the underlying ChibiOS), this port is released under the **GNU General Public License v3.0 (GPLv3)**, consistent with the license used in the `nt_grids.cc` source file itself.
