@@ -100,10 +100,10 @@ struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
   bool debug_param_changed_flags[kNumParameters]; // One flag per parameter
 
   // More detailed clock debugging
-  float debug_current_clock_cv_val;
-  float debug_prev_clock_cv_val_for_debug;
+  // float debug_current_clock_cv_val; // REMOVED - No longer used
+  // float debug_prev_clock_cv_val_for_debug; // REMOVED - No longer used
 
-  uint8_t debug_pg_state; // To display PatternGenerator::state_
+  // uint8_t debug_pg_state; // REMOVED - No longer used
 
   // You can add any other state your algorithm needs here.
 };
@@ -276,13 +276,13 @@ static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, co
     alg->debug_param_changed_flags[i] = false; // These flags still make sense for UI debug
   }
 
-  alg->debug_current_clock_cv_val = -1.0f;
-  alg->debug_prev_clock_cv_val_for_debug = -1.0f;
+  // Initialize detailed clock debug values
+  // alg->debug_current_clock_cv_val = -1.0f; // REMOVED
+  // alg->debug_prev_clock_cv_val_for_debug = -1.0f; // REMOVED
 
-  alg->debug_pg_state = 0; // Initialize debug PG state
+  // alg->debug_pg_state = 0; // REMOVED
 
   // Update PatternGenerator based on initial parameters (now from inherited alg->v, set by host)
-  // This assumes alg->v is populated by the host with either defaults or preset values by this point.
   update_grids_from_params(alg->v); // alg->v is now const int16_t* from _NT_algorithm
   nt_grids_port::grids::PatternGenerator::Reset();
   return reinterpret_cast<_NT_algorithm *>(alg); // This cast is fine as NtGridsAlgorithm IS-A _NT_algorithm
@@ -326,8 +326,8 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
         float current_sample_clock_cv = busFrames[clock_bus_array_idx * num_frames_total + s_cv];
 
         // Capture values for debugging for the current sample
-        self->debug_current_clock_cv_val = current_sample_clock_cv;
-        self->debug_prev_clock_cv_val_for_debug = self->prev_clock_cv_val; // This is the value from the *previous sample* processing
+        // self->debug_current_clock_cv_val = current_sample_clock_cv; // REMOVED - No longer used
+        // self->debug_prev_clock_cv_val_for_debug = self->prev_clock_cv_val; // This is the value from the *previous sample* processing
 
         if (current_sample_clock_cv > cv_threshold && self->prev_clock_cv_val <= cv_threshold)
         {
@@ -375,7 +375,7 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
 
   // Get current trigger state from PatternGenerator (AFTER all potential ticks/resets in this block)
   uint8_t current_pattern_state = PatternGenerator::state_;
-  self->debug_pg_state = current_pattern_state; // Store for drawing
+  // self->debug_pg_state = current_pattern_state; // REMOVED - No longer storing for drawing
 
   // --- Initiate trigger durations based on new events from PatternGenerator ---
   const float desired_trigger_duration_seconds = 0.005f; // Shortened to 5ms
@@ -437,7 +437,7 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
 
   // Main processing loop for each sample in the block
   // Writing outputs to busFrames based on parameter routing
-  const float trigger_on_voltage = 1.0f;
+  const float trigger_on_voltage = 10.0f;
   const float trigger_off_voltage = 0.0f;
 
   for (int s = 0; s < num_frames_total; ++s)
@@ -664,76 +664,98 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
 {
   NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Use static_cast
   bool is_drum_mode = (self->v[kParamMode] == 1);                      // self->v is inherited const int16_t*
-  // char buffer[32]; // Not needed if we are not drawing parameter values
-  _NT_textSize textSize = kNT_textNormal;
-  int current_y = 24;         // Adjusted from 2 to 2 + 22
-  const int line_spacing = 9; // Reduced line spacing slightly
-  char debug_buf[32];         // Buffer for string conversion
+  _NT_textSize textSize = kNT_textNormal;                              // Corrected to kNT_textNormal
+  int current_y = 22;                                                  // Start below a 20px header area
+  const int line_spacing = 10;                                         // Adjusted line spacing (may need tweaking for kNT_textNormal)
+  char buffer[32];                                                     // For potential value display, though currently only labels
 
-  // --- Debug Info Only ---
-  NT_drawText(5, current_y, self->debug_recent_clock_tick ? "CLK!" : "Clk?", 15, kNT_textLeft, textSize);
-  self->debug_recent_clock_tick = false; // Clear after drawing
-
-  NT_drawText(45, current_y, self->debug_recent_reset ? "RST!" : "Rst?", 15, kNT_textLeft, textSize);
-  self->debug_recent_reset = false; // Clear after drawing
-  current_y += line_spacing;
-
-  // Display Clock Input Bus
-  NT_intToString(debug_buf, self->v[kParamClockInput]); // self->v is inherited const int16_t*
-  NT_drawText(5, current_y, "ClkBus:", 15, kNT_textLeft, textSize);
-  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
-  current_y += line_spacing;
-
-  // Display Current Clock CV
-  NT_floatToString(debug_buf, self->debug_current_clock_cv_val, 2);
-  NT_drawText(5, current_y, "CurCV:", 15, kNT_textLeft, textSize);
-  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
-  current_y += line_spacing;
-
-  // Display Previous Clock CV
-  NT_floatToString(debug_buf, self->debug_prev_clock_cv_val_for_debug, 2);
-  NT_drawText(5, current_y, "PrvCV:", 15, kNT_textLeft, textSize);
-  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
-  current_y += line_spacing;
-
-  // Display PatternGenerator::state_
-  NT_intToString(debug_buf, self->debug_pg_state);
-  NT_drawText(5, current_y, "PGState:", 15, kNT_textLeft, textSize);
-  NT_drawText(55, current_y, debug_buf, 15, kNT_textLeft, textSize);
-  current_y += line_spacing;
-
-  NT_drawText(5, current_y, "MdCh:", 15, kNT_textLeft, textSize);
-  NT_drawText(45, current_y, self->debug_param_changed_flags[kParamMode] ? "Y" : "N", 15, kNT_textLeft, textSize);
-  self->debug_param_changed_flags[kParamMode] = false;
-
-  NT_drawText(70, current_y, "ChsCh:", 15, kNT_textLeft, textSize);
-  NT_drawText(120, current_y, self->debug_param_changed_flags[kParamChaosAmount] ? "Y" : "N", 15, kNT_textLeft, textSize);
-  self->debug_param_changed_flags[kParamChaosAmount] = false;
-  current_y += line_spacing;
+  // Display Mode
+  NT_drawText(5, current_y, is_drum_mode ? "Drums" : "Euclidean", 15, kNT_textLeft, textSize);
+  current_y += line_spacing * 2; // Extra spacing after mode
 
   if (is_drum_mode)
   {
-    NT_drawText(5, current_y, "XCh:", 15, kNT_textLeft, textSize);
-    NT_drawText(45, current_y, self->debug_param_changed_flags[kParamDrumMapX] ? "Y" : "N", 15, kNT_textLeft, textSize);
-    self->debug_param_changed_flags[kParamDrumMapX] = false;
-    NT_drawText(70, current_y, "YCh:", 15, kNT_textLeft, textSize);
-    NT_drawText(120, current_y, self->debug_param_changed_flags[kParamDrumMapY] ? "Y" : "N", 15, kNT_textLeft, textSize);
-    self->debug_param_changed_flags[kParamDrumMapY] = false;
+    NT_drawText(5, current_y, "X:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamDrumMapX]);
+    NT_drawText(45, current_y, buffer, 15, kNT_textLeft, textSize);
+    current_y += line_spacing;
+
+    NT_drawText(5, current_y, "Y:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamDrumMapY]);
+    NT_drawText(45, current_y, buffer, 15, kNT_textLeft, textSize);
+    current_y += line_spacing;
+    current_y += line_spacing; // Extra space
+
+    NT_drawText(5, current_y, "Density1:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamDrumDensity1]);
+    NT_drawText(75, current_y, buffer, 15, kNT_textLeft, textSize);
+    current_y += line_spacing;
+
+    NT_drawText(5, current_y, "Density2:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamDrumDensity2]);
+    NT_drawText(75, current_y, buffer, 15, kNT_textLeft, textSize);
+    current_y += line_spacing;
+
+    NT_drawText(5, current_y, "Density3:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamDrumDensity3]);
+    NT_drawText(75, current_y, buffer, 15, kNT_textLeft, textSize);
     current_y += line_spacing;
   }
   else // Euclidean Mode
   {
-    NT_drawText(5, current_y, "L1Ch:", 15, kNT_textLeft, textSize);
-    NT_drawText(45, current_y, self->debug_param_changed_flags[kParamEuclideanLength1] ? "Y" : "N", 15, kNT_textLeft, textSize);
-    self->debug_param_changed_flags[kParamEuclideanLength1] = false;
-    // Add other relevant Euclidean encoder targets if needed for debug
-    // e.g., kParamEuclideanLength2, kParamEuclideanLength3 if mapped to other encoders
+    NT_drawText(5, current_y, "L1:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamEuclideanLength1]);
+    NT_drawText(45, current_y, buffer, 15, kNT_textLeft, textSize);
+    NT_drawText(70, current_y, "F1:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamEuclideanFill1]);
+    NT_drawText(110, current_y, buffer, 15, kNT_textLeft, textSize);
+    current_y += line_spacing;
+
+    NT_drawText(5, current_y, "L2:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamEuclideanLength2]);
+    NT_drawText(45, current_y, buffer, 15, kNT_textLeft, textSize);
+    NT_drawText(70, current_y, "F2:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamEuclideanFill2]);
+    NT_drawText(110, current_y, buffer, 15, kNT_textLeft, textSize);
+    current_y += line_spacing;
+
+    NT_drawText(5, current_y, "L3:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamEuclideanLength3]);
+    NT_drawText(45, current_y, buffer, 15, kNT_textLeft, textSize);
+    NT_drawText(70, current_y, "F3:", 15, kNT_textLeft, textSize);
+    NT_intToString(buffer, self->v[kParamEuclideanFill3]);
+    NT_drawText(110, current_y, buffer, 15, kNT_textLeft, textSize);
+    current_y += line_spacing;
+    current_y += line_spacing; // Extra space
+
+    NT_drawText(5, current_y, "Chaos:", 15, kNT_textLeft, textSize);
+    if (self->v[kParamChaosEnable])
+    {
+      NT_intToString(buffer, self->v[kParamChaosAmount]);
+      NT_drawText(55, current_y, buffer, 15, kNT_textLeft, textSize);
+    }
+    else
+    {
+      NT_drawText(55, current_y, "Off", 15, kNT_textLeft, textSize);
+    }
     current_y += line_spacing;
   }
 
-  // Intentionally removed all other drawing of parameter values to focus on debug flags.
+  // Display Clock/Reset status briefly near the top right, small
+  _NT_textSize statusTextSize = kNT_textNormal; // Corrected to kNT_textNormal
+  if (self->debug_recent_clock_tick)
+  {
+    NT_drawText(110, 2, "CLK", 15, kNT_textRight, statusTextSize); // Top right area
+  }
+  if (self->debug_recent_reset)
+  {
+    NT_drawText(100, 2, "RST", 15, kNT_textRight, statusTextSize);
+  }
+  // Clear these flags after checking, as they are mainly for the step logic now but can give a brief UI flash.
+  self->debug_recent_clock_tick = false;
+  self->debug_recent_reset = false;
 
-  return false; // Return false as we are not doing a full custom screen that would hide the top bar.
+  return true; // Return true to indicate full custom UI
 }
 
 // --- Factory Definition (must be after all callback definitions it references) ---
