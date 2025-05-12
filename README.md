@@ -51,7 +51,7 @@ Inputs are configured via the standard Disting NT parameter pages (`Routing` pag
 *   **Clock In:**
     *   Parameter: `Clock In`
     *   Type: CV Input Bus (Select Bus 1-28)
-    *   Function: Advances the sequencer one step on a rising edge.
+    *   Function: Advances the internal sequencer based on a 24 PPQN (Pulses Per Quarter Note) clock signal. The internal step resolution is tied to this PPQN rate.
     *   Threshold: > ~0.5V
 *   **Reset In:**
     *   Parameter: `Reset In`
