@@ -13,7 +13,7 @@ This project brings the unique algorithmic drum pattern generation of the origin
 *   **Original Concept & Code:** Emilie Gillet (Mutable Instruments). The original Eurorack module source code can be found [here](https://github.com/pichenettes/eurorack/tree/master/grids).
 *   **Disting NT Port:** Neal Sanche (GitHub: Thorinside)
 
-The original Grids firmware is licensed under the MIT license, however, as this port utilizes the Disting NT SDK which itself appears to use GPL-licensed components (like the underlying ChibiOS), this port is released under the **GNU General Public License v3.0 (GPLv3)**, consistent with the license used in the `nt_grids.cc` source file itself.
+The original Grids firmware is licensed under the GPLv3 license, however, as this port utilizes the Disting NT SDK which itself appears to use MIT-licensed components, this port is released under the **GNU General Public License v3.0 (GPLv3)**, consistent with the license used in the `nt_grids.cc` source file itself.
 
 ## Features
 
