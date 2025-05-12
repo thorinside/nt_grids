@@ -5,6 +5,9 @@ on:
     tags:
       - "v*" # Runs action on pushed tags starting with 'v'
 
+permissions:
+  contents: write # Needed for creating/updating GitHub releases
+
 jobs:
   build-and-release:
     runs-on: macos-latest

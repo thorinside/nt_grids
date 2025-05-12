@@ -792,7 +792,35 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
       x_pos += sep_width;
 
       // Draw Fill Value (White/Grey)
-      NT_intToString(num_buffer, self->v[fill_param]);
+      // Duplicate calculation from PatternGenerator::GetFill
+      int16_t length_param_value = self->v[length_param];
+      int16_t fill_param_value_raw = self->v[fill_param]; // 0-255
+      uint16_t actual_hits_from_lut = 0;
+
+      if (length_param_value > 0 && length_param_value <= 32) // Valid length for LUT
+      {
+        uint8_t density_for_lut = static_cast<uint8_t>(fill_param_value_raw >> 3);
+        if (density_for_lut > 31)
+          density_for_lut = 31;
+
+        uint16_t address = (static_cast<uint16_t>(length_param_value - 1) * 32) + density_for_lut;
+        if (address >= nt_grids_port::LUT_RES_EUCLIDEAN_SIZE)
+        {
+          address = nt_grids_port::LUT_RES_EUCLIDEAN_SIZE - 1; // Clamp address
+        }
+
+        uint32_t pattern_bits = nt_grids_port::lut_res_euclidean[address];
+
+        // Count set bits in pattern_bits (up to length_param_value)
+        for (int bit_idx = 0; bit_idx < length_param_value; ++bit_idx)
+        {
+          if ((pattern_bits >> bit_idx) & 1)
+          {
+            actual_hits_from_lut++;
+          }
+        }
+      }
+      NT_intToString(num_buffer, actual_hits_from_lut);
       NT_drawText(x_pos, euclid_y, num_buffer, fill_val_color, kNT_textLeft, euclidTextSize);
       x_pos += val_width;
 
