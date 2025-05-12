@@ -1,0 +1,59 @@
+name: Make NT Grids Plug-in Archive
+
+on:
+  push:
+    tags:
+      - "v*" # Runs action on pushed tags starting with 'v'
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        # Ensure submodules are checked out if nt_grids depends on them (e.g., distingNT_API)
+        with:
+          submodules: "recursive"
+
+      - name: Install dependencies via Homebrew
+        run: |
+          brew update
+          brew install faust
+          brew install --cask gcc-arm-embedded
+
+      - name: Verify installation
+        run: |
+          arm-none-eabi-g++ --version
+          faust --version
+
+      # Updated build step to target nt_grids specifically
+      - name: Build nt_grids plugin
+        run: |
+          echo "Building nt_grids"
+          # Assuming the root Makefile builds nt_grids.o and places it in plugins/
+          make clean 
+          make nt_grids.o # Or just 'make' if that builds the target
+
+      # Updated artifact preparation for nt_grids
+      - name: Prepare directory structure for nt_grids zip
+        run: |
+          mkdir -p release/programs/plug-ins/nt_grids
+          echo "Copying nt_grids.o"
+          # Assuming the build output is plugins/nt_grids.o
+          cp plugins/nt_grids.o release/programs/plug-ins/nt_grids/
+
+      # Updated zip step for nt_grids
+      - name: Zip nt_grids plugin artifact
+        run: |
+          cd release
+          zip -r ../nt_grids-plugin.zip programs
+          cd ..
+
+      # Updated release step for nt_grids
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nt_grids-plugin.zip # Attach only the nt_grids zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
