@@ -590,32 +590,45 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
     {
       primary_param_idx = (ParameterIndex)(kParamDrumDensity1 + i); // L=D1, C=D2, R=D3
       if (i == 1)
-      { // Pot C
-        alternate_param_idx = kParamChaosAmount;
-        has_alternate = true; // Pot C button controls Chaos Amount
+      {                                         // Pot C (i=1)
+        primary_param_idx = kParamDrumDensity2; // Pot C controls Density 2
+        alternate_param_idx = kParamMode;       // Invalid/unused
+        has_alternate = false;
+      }
+      else if (i == 2) // Pot R (i=2)
+      {
+        primary_param_idx = kParamDrumDensity3;  // Pot R controls Density 3
+        alternate_param_idx = kParamChaosAmount; // Pot R button controls Chaos Amount
+        has_alternate = true;
+      }
+      else // Pot L (i=0)
+      {
+        primary_param_idx = (ParameterIndex)(kParamDrumDensity1 + i); // L=D1, R=D3
+        alternate_param_idx = kParamMode;                             // Invalid/unused
+        has_alternate = false;
       }
     }
     else
     { // Euclidean Mode
-      // Pot R button toggles global state (m_euclidean_controls_length)
-      // We configure based on that state. update() handles the button press.
+      // The primary/alternate roles depend on the global toggle state.
+      // The TakeoverPot update logic doesn't need to know about the toggle trigger (Pot R press),
+      // only which param is currently primary and which is alternate for takeover purposes
+      // triggered by resetTakeoverForNewPrimary.
       if (self->m_euclidean_controls_length)
       { // Currently controlling Length
         primary_param_idx = (ParameterIndex)(kParamEuclideanLength1 + i);
         primary_scale = MAX_PARAM_VAL_PERCENT_32;
-        // When controlling Length, button press switches back to Fill
-        alternate_param_idx = (ParameterIndex)(kParamEuclideanFill1 + i);
+        alternate_param_idx = (ParameterIndex)(kParamEuclideanFill1 + i); // The 'other' param
         alternate_scale = MAX_PARAM_VAL_PERCENT_255;
       }
       else
       { // Currently controlling Fill
         primary_param_idx = (ParameterIndex)(kParamEuclideanFill1 + i);
         primary_scale = MAX_PARAM_VAL_PERCENT_255;
-        // When controlling Fill, button press switches to Length
-        alternate_param_idx = (ParameterIndex)(kParamEuclideanLength1 + i);
+        alternate_param_idx = (ParameterIndex)(kParamEuclideanLength1 + i); // The 'other' param
         alternate_scale = MAX_PARAM_VAL_PERCENT_32;
       }
-      has_alternate = true; // Pot R button acts as the toggle trigger
+      has_alternate = false; // The TakeoverPot alternate mechanism (button hold) is not used here.
     }
 
     // Configure the pot with its current role(s) based on mode and Euclidean state
@@ -625,55 +638,48 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
     self->m_pots[i].update(data);
   }
 
-  // --- Encoder Handling (Seems unchanged by request) ---
-  // Encoder L controls Map X (Drum) or Chaos Amount (Euclidean)
+  // --- Encoder Handling ---
+  // Encoder L controls Map X (Drum)
   if (data.encoders[0] != 0)
   {
-    int32_t current_val, new_val, min_val, max_val;
-    ParameterIndex param_idx_to_change;
-    int step_multiplier = 1;
-
     if (current_mode_is_drum)
-    {
-      param_idx_to_change = kParamDrumMapX;
-    }
-    else // Euclidean Mode
-    {
-      param_idx_to_change = kParamChaosAmount;
-      step_multiplier = 5;
-    }
+    { // Only active in Drum mode
+      ParameterIndex param_idx_to_change = kParamDrumMapX;
+      int32_t current_val = self->v[param_idx_to_change];
+      int32_t min_val = s_parameters[param_idx_to_change].min;
+      int32_t max_val = s_parameters[param_idx_to_change].max;
+      int32_t new_val = current_val + data.encoders[0]; // Step is 1
 
-    current_val = self->v[param_idx_to_change];
-    min_val = s_parameters[param_idx_to_change].min;
-    max_val = s_parameters[param_idx_to_change].max;
-    new_val = current_val + data.encoders[0] * step_multiplier;
-
-    if (new_val < min_val)
-      new_val = min_val;
-    if (new_val > max_val)
-      new_val = max_val;
-    NT_setParameterFromUi(alg_idx, param_idx_to_change + param_offset, new_val);
+      if (new_val < min_val)
+        new_val = min_val;
+      if (new_val > max_val)
+        new_val = max_val;
+      NT_setParameterFromUi(alg_idx, param_idx_to_change + param_offset, new_val);
+    }
   }
 
-  // Encoder R controls Map Y (Drum) or Length 1 (Euclidean)
+  // Encoder R controls Map Y (Drum) or Chaos Amount (Euclidean)
   if (data.encoders[1] != 0)
   {
     int32_t current_val, new_val, min_val, max_val;
     ParameterIndex param_idx_to_change;
+    int step_multiplier = 1; // Default step
 
     if (current_mode_is_drum)
-    {
+    { // Check the mode we determined earlier
       param_idx_to_change = kParamDrumMapY;
+      // step_multiplier remains 1 for Map Y
     }
-    else // Euclidean Mode
-    {
-      param_idx_to_change = kParamEuclideanLength1;
+    else
+    { // Euclidean Mode
+      param_idx_to_change = kParamChaosAmount;
+      step_multiplier = 5; // Faster step for Chaos
     }
 
     current_val = self->v[param_idx_to_change];
     min_val = s_parameters[param_idx_to_change].min;
     max_val = s_parameters[param_idx_to_change].max;
-    new_val = current_val + data.encoders[1];
+    new_val = current_val + data.encoders[1] * step_multiplier;
 
     if (new_val < min_val)
       new_val = min_val;
@@ -740,53 +746,77 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
   }
   else // Euclidean Mode
   {
-    // Build L1:F1, L2:F2, L3:F3 string manually without strcat/strcpy
-    char temp_num_str[5]; // Temporary buffer for number conversion
-    int buffer_pos = 0;   // Current writing position in the main buffer
+    const int white = 15;
+    const int gray = 8;
+    _NT_textSize euclidTextSize = kNT_textNormal;
 
-    // Ensure buffer is initially empty
-    buffer[0] = '\0';
+    bool editing_length = self->m_euclidean_controls_length;
+    int length_val_color = editing_length ? white : gray;
+    int fill_val_color = editing_length ? gray : white;
 
-    // Helper function to append a string manually
-    auto manual_append = [&](const char *str_to_append)
+    char num_buffer[5]; // For converting numbers to strings
+
+    // --- Draw L#: LVal:FVal line ---
+    int euclid_y = current_y;              // Y position for the main L/F line
+    int chaos_y = euclid_y + line_spacing; // Y position for Chaos line
+
+    // Approximate center x = 128. Estimate string width or use offsets.
+    // Let's try drawing pieces relative to a starting point. We might need to fine-tune X values.
+    int x_pos = 30;             // Starting X - adjust as needed for centering
+    const int sep_width = 5;    // Space around colons
+    const int val_width = 20;   // Approx width for values
+    const int label_width = 20; // Approx width for labels (L1:, F1:)
+    const int track_gap = 15;   // Space between L#:F# groups
+
+    for (int i = 0; i < 3; ++i)
     {
-      int i = 0;
-      // Cast sizeof result to int to avoid sign comparison warning
-      while (str_to_append[i] != '\0' && buffer_pos < (int)(sizeof(buffer) - 1))
+      ParameterIndex length_param = (ParameterIndex)(kParamEuclideanLength1 + i);
+      ParameterIndex fill_param = (ParameterIndex)(kParamEuclideanFill1 + i);
+
+      // Draw L#: (Grey)
+      char label_buffer[4];
+      label_buffer[0] = 'L';
+      label_buffer[1] = '1' + i;
+      label_buffer[2] = ':';
+      label_buffer[3] = '\0';
+      NT_drawText(x_pos, euclid_y, label_buffer, gray, kNT_textLeft, euclidTextSize);
+      x_pos += label_width;
+
+      // Draw Length Value (White/Grey)
+      NT_intToString(num_buffer, self->v[length_param]);
+      NT_drawText(x_pos, euclid_y, num_buffer, length_val_color, kNT_textLeft, euclidTextSize);
+      x_pos += val_width;
+
+      // Draw : (Grey)
+      NT_drawText(x_pos, euclid_y, ":", gray, kNT_textLeft, euclidTextSize);
+      x_pos += sep_width;
+
+      // Draw Fill Value (White/Grey)
+      NT_intToString(num_buffer, self->v[fill_param]);
+      NT_drawText(x_pos, euclid_y, num_buffer, fill_val_color, kNT_textLeft, euclidTextSize);
+      x_pos += val_width;
+
+      // Gap before next track
+      if (i < 2)
       {
-        buffer[buffer_pos++] = str_to_append[i++];
+        x_pos += track_gap;
       }
-      buffer[buffer_pos] = '\0'; // Null-terminate
-    };
+    }
 
-    // L1
-    manual_append("L1: ");
-    NT_intToString(temp_num_str, self->v[kParamEuclideanLength1]);
-    manual_append(temp_num_str);
-    manual_append(":");
-    NT_intToString(temp_num_str, self->v[kParamEuclideanFill1]);
-    manual_append(temp_num_str);
-
-    // L2
-    manual_append("   L2: ");
-    NT_intToString(temp_num_str, self->v[kParamEuclideanLength2]);
-    manual_append(temp_num_str);
-    manual_append(":");
-    NT_intToString(temp_num_str, self->v[kParamEuclideanFill2]);
-    manual_append(temp_num_str);
-
-    // L3
-    manual_append("   L3: ");
-    NT_intToString(temp_num_str, self->v[kParamEuclideanLength3]);
-    manual_append(temp_num_str);
-    manual_append(":");
-    NT_intToString(temp_num_str, self->v[kParamEuclideanFill3]);
-    manual_append(temp_num_str);
-
-    // Draw the combined string centered on a single row
-    NT_drawText(128, current_y, buffer, 15, kNT_textCentre, textSize);
-
-    // The old multi-line display code is already commented out or removed
+    // --- Draw Chaos line ---
+    // Draw label slightly left of center, right-aligned
+    NT_drawText(126, chaos_y, "Chaos:", 15, kNT_textRight, euclidTextSize);
+    if (self->v[kParamChaosEnable])
+    {
+      NT_intToString(num_buffer, self->v[kParamChaosAmount]);
+      // Draw value slightly right of center, left-aligned
+      NT_drawText(130, chaos_y, num_buffer, 15, kNT_textLeft, euclidTextSize);
+    }
+    else
+    {
+      // Draw "Off" slightly right of center, left-aligned
+      NT_drawText(130, chaos_y, "Off", 15, kNT_textLeft, euclidTextSize);
+    }
   }
 
   // --- Status Indicators ---
@@ -853,12 +883,4 @@ extern "C" uintptr_t pluginEntry(_NT_selector selector, uint32_t data)
 // For now, sticking to the explicit pluginEntry as per gain.cpp example.
 
 // --- TakeoverPot Method Implementations (Placed After NtGridsAlgorithm and s_parameters) ---
-// --- Removed - Moved to nt_grids_takeover_pot.cc ---
-
-//----------------------------------------------------------------------------------------------------
-// Update custom UI controls -- THIS FUNCTION IS CURRENTLY BROKEN DUE TO EDIT ISSUES
-//----------------------------------------------------------------------------------------------------
-extern "C" void nt_grids_custom_ui(NtGridsAlgorithm *algo, uint32_t time)
-{
-  // ... existing broken code ...
-}
+// Moved to nt_grids_takeover_pot.cc

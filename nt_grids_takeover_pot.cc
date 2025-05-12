@@ -63,6 +63,19 @@ void TakeoverPot::resetTakeoverForModeSwitch(int16_t new_primary_param_value)
   m_takeover_active_primary = true;
 }
 
+void TakeoverPot::resetTakeoverForNewPrimary(int16_t new_primary_param_value)
+{
+  // Called when Euclidean mode toggles between Length and Fill control.
+  // The pot now controls a new primary parameter. Activate takeover for it.
+  m_is_controlling_alternate = false; // Pot is now controlling the new primary
+  m_takeover_active_alternate = false;
+  m_alternate_takeover_value = 0;
+
+  m_primary_takeover_value = new_primary_param_value;
+  m_takeover_active_primary = true;
+  // Optional: Add check here to see if physical pot is already near the new value and disable takeover if so.
+}
+
 void TakeoverPot::syncPhysicalValue(float physical_pot_value)
 {
   // Called by setupUi to initialize the pot's physical value and disable takeover
@@ -112,59 +125,29 @@ void TakeoverPot::update(const _NT_uiData &data)
   float current_pot_physical_value = data.pots[m_pot_index];
   bool pot_changed = (data.potChange & (1 << m_pot_index));
 
-  // --- Handle Button Transitions (Press/Release) ---
-  // Determine which button press/release affects this pot's alternate state
-  // and whether it results in switching TO alternate or FROM alternate.
+  // --- Handle Button Transitions & State ---
   bool switchToAlternate = false;
   bool switchFromAlternate = false;
-  bool current_alternate_state_active = m_is_controlling_alternate; // Default assumption
+  bool current_alternate_state_active = false; // Is the alternate param controlled *right now*?
 
-  if (m_has_alternate)
+  bool is_drum_mode = (m_algo->v[kParamMode] == 1);
+
+  // --- Determine current control state and handle button transitions ONLY for Drum/PotR ---
+  if (is_drum_mode && m_has_alternate && m_pot_index == 2) // Drum mode, Pot R, Alternate configured (Chaos)
   {
-    bool is_euclidean_mode = (m_algo->v[kParamMode] == 0);
+    bool potR_button_current = (data.buttons & kNT_potButtonR);
+    bool potR_button_last = (data.lastButtons & kNT_potButtonR);
+    switchToAlternate = potR_button_current && !potR_button_last;   // Just pressed
+    switchFromAlternate = !potR_button_current && potR_button_last; // Just released
+    current_alternate_state_active = potR_button_current;           // Control alternate WHILE held
 
-    if (is_euclidean_mode)
-    {
-      // Euclidean: Pot R button toggles the global m_euclidean_controls_length state
-      // This was handled in nt_grids_custom_ui. Here, we just need to know
-      // if the button press *caused* a state change relevant to *this* pot.
-      // We determine m_is_controlling_alternate based on the global flag.
-      m_is_controlling_alternate = m_algo->m_euclidean_controls_length;
-
-      // If Pot R button was just pressed/released, it toggled the state.
-      // We need to activate takeover for the parameter we just switched *to*.
-      bool potR_pressed = (data.buttons & kNT_potButtonR) && !(data.lastButtons & kNT_potButtonR);
-      bool potR_released = !(data.buttons & kNT_potButtonR) && (data.lastButtons & kNT_potButtonR);
-
-      if (potR_pressed || potR_released)
-      { // State just toggled
-        // activateTakeover is now handled by resetTakeoverForModeSwitch called from custom_ui
-        // So, no explicit takeover logic needed here for Euclidean toggle itself.
-      }
-      current_alternate_state_active = m_is_controlling_alternate; // Reflect the global state
-    }
-    else // Drum Mode
-    {
-      // Drum: Only Pot C (index 1) has alternate (Chaos), controlled by its own button
-      if (m_pot_index == 1)
-      {
-        bool potC_button_current = (data.buttons & kNT_potButtonC);
-        bool potC_button_last = (data.lastButtons & kNT_potButtonC);
-        switchToAlternate = potC_button_current && !potC_button_last;
-        switchFromAlternate = !potC_button_current && potC_button_last;
-        current_alternate_state_active = potC_button_current; // Alternate is active while button is held
-      }
-      // Other pots (L, R) in drum mode have no alternate behavior based on buttons.
-      m_is_controlling_alternate = current_alternate_state_active; // Update internal state
-    }
-
-    // --- Activate Takeover Based on State Switches (Drum mode Pot C only) ---
+    // --- Activate Takeover Based on State Switches (Drum mode Pot R only) ---
     if (switchToAlternate)
     {
-      m_takeover_active_primary = false;
-      m_alternate_takeover_value = m_algo->v[m_alternate_param];
-      m_takeover_active_alternate = true;
-      // Check if pot is already at the target value
+      m_takeover_active_primary = false;                         // Stop takeover for primary
+      m_alternate_takeover_value = m_algo->v[m_alternate_param]; // Store current alternate value
+      m_takeover_active_alternate = true;                        // Start takeover for alternate
+      // Optional check if pot is already at the target value
       int32_t alternate_value_at_pot = static_cast<int32_t>((current_pot_physical_value * m_alternate_scale) + 0.5f);
       if (alternate_value_at_pot == m_alternate_takeover_value)
       {
@@ -173,65 +156,64 @@ void TakeoverPot::update(const _NT_uiData &data)
     }
     else if (switchFromAlternate)
     {
-      m_takeover_active_alternate = false;
-      m_primary_takeover_value = m_algo->v[m_primary_param];
-      m_takeover_active_primary = true;
-      // Check if pot is already at the target value
+      m_takeover_active_alternate = false;                   // Stop takeover for alternate
+      m_primary_takeover_value = m_algo->v[m_primary_param]; // Store current primary value
+      m_takeover_active_primary = true;                      // Start takeover for primary
+      // Optional check if pot is already at the target value
       int32_t primary_value_at_pot = static_cast<int32_t>((current_pot_physical_value * m_primary_scale) + 0.5f);
       if (primary_value_at_pot == m_primary_takeover_value)
       {
         m_takeover_active_primary = false; // Already there
       }
     }
-    // Note: Euclidean takeover is handled via resetTakeoverForModeSwitch in custom_ui
+
+    // Update internal state reflecting current control target for Drum/PotR
+    m_is_controlling_alternate = current_alternate_state_active;
   }
   else
   {
-    // No alternate configured for this pot/mode
+    // Not Drum/PotR: No button-hold alternate logic applies here.
+    // Euclidean toggling sets the *primary* parameter and activates takeover via resetTakeoverForNewPrimary.
+    // Therefore, the pot should always be considered controlling the primary.
     m_is_controlling_alternate = false;
+    // Ensure alternate takeover isn't spuriously active if mode switched while button held etc.
+    // Although resetTakeoverForModeSwitch should handle this.
+    // m_takeover_active_alternate = false; // Probably safe to ensure this
   }
 
   // --- Handle Pot Movement ---
   if (pot_changed)
   {
     int32_t new_param_value_scaled = 0;
-    int32_t prev_param_value_scaled = 0; // Needed for takeover check
+    int32_t prev_param_value_scaled = 0; // Needed for takeover check if takeover is active
 
-    if (m_is_controlling_alternate) // Check the *current* control state
-    {                               // Potentiometer controls the alternate parameter
+    // Check m_is_controlling_alternate which reflects the *current* target parameter (only true for Drum/PotR-Hold)
+    if (m_is_controlling_alternate) // Controlling Alternate (Drum mode, Pot R held, controlling Chaos)
+    {
+      // WHILE the button is held, the pot DIRECTLY controls the alternate parameter.
+      // The alternate takeover state is only used to trigger primary takeover upon release.
       new_param_value_scaled = static_cast<int32_t>((current_pot_physical_value * m_alternate_scale) + 0.5f);
-      if (m_takeover_active_alternate)
-      { // Takeover active: check if pot value crosses the stored takeover value
-        prev_param_value_scaled = static_cast<int32_t>((m_prev_physical_value * m_alternate_scale) + 0.5f);
-        bool crossed_up = (prev_param_value_scaled <= m_alternate_takeover_value && new_param_value_scaled >= m_alternate_takeover_value);
-        bool crossed_down = (prev_param_value_scaled >= m_alternate_takeover_value && new_param_value_scaled <= m_alternate_takeover_value);
-        if (crossed_up || crossed_down)
-        {
-          m_takeover_active_alternate = false;
-          setParameter(m_alternate_param, new_param_value_scaled);
-        }
-      }
-      else
-      { // Takeover not active: directly set the parameter
-        setParameter(m_alternate_param, new_param_value_scaled);
-      }
+      setParameter(m_alternate_param, new_param_value_scaled);
     }
-    else
-    { // Potentiometer controls the primary parameter
+    else // Controlling Primary (All pots in Euclid, Pots L/C in Drum, Pot R in Drum when button not held)
+    {
       new_param_value_scaled = static_cast<int32_t>((current_pot_physical_value * m_primary_scale) + 0.5f);
-      if (m_takeover_active_primary)
-      { // Takeover active: check if pot value crosses the stored takeover value
+
+      if (m_takeover_active_primary) // Takeover active for primary?
+      {
+        // Check if pot value crosses the stored takeover value
         prev_param_value_scaled = static_cast<int32_t>((m_prev_physical_value * m_primary_scale) + 0.5f);
         bool crossed_up = (prev_param_value_scaled <= m_primary_takeover_value && new_param_value_scaled >= m_primary_takeover_value);
         bool crossed_down = (prev_param_value_scaled >= m_primary_takeover_value && new_param_value_scaled <= m_primary_takeover_value);
         if (crossed_up || crossed_down)
         {
-          m_takeover_active_primary = false;
+          m_takeover_active_primary = false; // Takeover complete
           setParameter(m_primary_param, new_param_value_scaled);
         }
+        // else: Pot moved but hasn't reached takeover value yet, do nothing
       }
       else
-      { // Takeover not active: directly set the parameter
+      { // Takeover not active for primary: directly set the primary parameter
         setParameter(m_primary_param, new_param_value_scaled);
       }
     }

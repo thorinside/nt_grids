@@ -30,6 +30,11 @@ struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
 
   // Add a default constructor maybe? Or rely on placement new initialization?
   // Relying on placement new for now.
+
+  void resetTakeoverForModeSwitch(int16_t new_primary_param_value); // For Drum/Euclid mode switch
+  void syncPhysicalValue(float physical_pot_value);                 // For setupUi
+  void resetTakeoverForNewPrimary(int16_t new_primary_param_value); // For Euclid Length/Fill toggle
+  void update(const _NT_uiData &data);                              // The main update logic
 };
 
 // --- Extern declaration for s_parameters ---
