@@ -300,7 +300,7 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
   // self->debug_pg_state = current_pattern_state; // REMOVED - No longer storing for drawing
 
   // --- Initiate trigger durations based on new events from PatternGenerator ---
-  const float desired_trigger_duration_seconds = 0.005f; // Shortened to 5ms
+  const float desired_trigger_duration_seconds = 0.001f; // Set to 1ms as per original Grids
   const uint32_t desired_trigger_samples = static_cast<uint32_t>(desired_trigger_duration_seconds * NT_globals.sampleRate);
 
   // Trig 1 (output bit 0, array index 0)
@@ -359,7 +359,7 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
 
   // Main processing loop for each sample in the block
   // Writing outputs to busFrames based on parameter routing
-  const float trigger_on_voltage = 10.0f;
+  const float trigger_on_voltage = 5.0f; // Set to +5V as per original Grids
   const float trigger_off_voltage = 0.0f;
 
   for (int s = 0; s < num_frames_total; ++s)
