@@ -468,6 +468,12 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
       }
     }
   }
+
+  // Clear the per-step clock tick flag after it has been used for this block's logic.
+  // This prevents re-triggering if draw() is not called to clear it when the host clock stops.
+  self->debug_recent_clock_tick = false;
+  // self->debug_recent_reset can also be cleared here if similar issues arise with reset,
+  // but reset is usually a one-shot event.
 }
 
 // --- Custom UI Callback Implementations (all static as per example) ---
