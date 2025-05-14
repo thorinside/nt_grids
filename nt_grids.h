@@ -14,7 +14,7 @@ struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
   float prev_clock_cv_val;
   float prev_reset_cv_val;
 
-  uint32_t trigger_on_samples_remaining[4];
+  int8_t trigger_active_steps_remaining[4]; // Added to track trigger duration over steps
 
   bool debug_recent_clock_tick;
   bool debug_recent_reset;

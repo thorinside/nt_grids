@@ -41,12 +41,13 @@ static const char *kEnumModeStrings[] = {"Euclidean", "Drums", NULL};
 static const char *kEnumBooleanStrings[] = {"Off", "On", NULL};
 
 // Define s_parameters (matches extern declaration in nt_grids.h)
+// clang-format off
 const _NT_parameter s_parameters[] = {
     {.name = "Mode", .min = 0, .max = 1, .def = 1, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = kEnumModeStrings},
     {.name = "Chaos", .min = 0, .max = 1, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = kEnumBooleanStrings},
     {.name = "Chaos Amount", .min = 0, .max = 255, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     NT_PARAMETER_CV_INPUT("Clock In", 0, 0)
-        NT_PARAMETER_CV_INPUT("Reset In", 0, 0){.name = "Map X", .min = 0, .max = 255, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    NT_PARAMETER_CV_INPUT("Reset In", 0, 0){.name = "Map X", .min = 0, .max = 255, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     {.name = "Map Y", .min = 0, .max = 255, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     {.name = "Density 1", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     {.name = "Density 2", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
@@ -58,9 +59,14 @@ const _NT_parameter s_parameters[] = {
     {.name = "Fill 2", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     {.name = "Fill 3", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 1 Out", 0, 13)
-        NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 2 Out", 0, 14)
-            NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 3 Out", 0, 15)
-                NT_PARAMETER_CV_OUTPUT_WITH_MODE("Accent Out", 0, 16)}; // Note: kNumParameters enum value must match the size implicitly
+    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 2 Out", 0, 14)
+    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 3 Out", 0, 15)
+    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Accent Out", 0, 16)
+};
+// clang-format on
+// Note: kNumParameters enum value must match the size implicitly
+
+static const uint8_t NUM_TRIGGER_STEPS = 5;
 
 // --- Parameter Pages ---
 static const uint8_t s_page_main[] = {
@@ -184,7 +190,7 @@ static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, co
 
   for (int i = 0; i < 4; ++i)
   {
-    alg->trigger_on_samples_remaining[i] = 0;
+    alg->trigger_active_steps_remaining[i] = 0;
   }
 
   alg->debug_recent_clock_tick = false;
@@ -233,247 +239,134 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
   int num_frames_total = numFramesBy4 * 4; // Total samples in the block
 
   // CV Input Handling: Iterate through each sample in the block for edge detection
-  const float cv_threshold = 0.5f;                         // Reverted to 0.5f to resolve compilation issue
-  int clock_bus_idx_param_val = self->v[kParamClockInput]; // self->v is inherited const int16_t*
-  int reset_bus_idx_param_val = self->v[kParamResetInput]; // self->v is inherited const int16_t*
+  const float cv_threshold = 0.5f;
+  int clock_bus_idx_param_val = self->v[kParamClockInput];
+  int reset_bus_idx_param_val = self->v[kParamResetInput];
+
+  // Temporarily store debug_recent_clock_tick as it might be cleared before countdown
+  bool tick_this_step = false;
 
   for (int s_cv = 0; s_cv < num_frames_total; ++s_cv)
   {
     // Clock Input Detection
-    if (clock_bus_idx_param_val > 0) // Is a bus selected? (1-based)
+    if (clock_bus_idx_param_val > 0)
     {
-      int clock_bus_array_idx = clock_bus_idx_param_val - 1; // Convert to 0-based for array access
-      if (clock_bus_array_idx < 28)                          // Check if bus index is valid (max 28 buses)
+      int clock_bus_array_idx = clock_bus_idx_param_val - 1;
+      if (clock_bus_array_idx < 28)
       {
         float current_sample_clock_cv = busFrames[clock_bus_array_idx * num_frames_total + s_cv];
-
-        // Capture values for debugging for the current sample
-        // self->debug_current_clock_cv_val = current_sample_clock_cv; // REMOVED - No longer used
-        // self->debug_prev_clock_cv_val_for_debug = self->prev_clock_cv_val; // This is the value from the *previous sample* processing
-
         if (current_sample_clock_cv > cv_threshold && self->prev_clock_cv_val <= cv_threshold)
         {
           PatternGenerator::TickClock(true);
-          self->debug_recent_clock_tick = true; // Set debug flag
+          self->debug_recent_clock_tick = true; // Set global debug flag
+          tick_this_step = true;                // Local flag for this step's logic
         }
         self->prev_clock_cv_val = current_sample_clock_cv;
       }
       else
       {
-        self->prev_clock_cv_val = 0.0f; // Invalid bus, treat as no signal
+        self->prev_clock_cv_val = 0.0f;
       }
     }
     else
     {
-      self->prev_clock_cv_val = 0.0f; // No bus selected, ensure previous state is low
+      self->prev_clock_cv_val = 0.0f;
     }
 
     // Reset Input Detection
-    if (reset_bus_idx_param_val > 0) // Is a bus selected? (1-based)
+    if (reset_bus_idx_param_val > 0)
     {
-      int reset_bus_array_idx = reset_bus_idx_param_val - 1; // Convert to 0-based
-      if (reset_bus_array_idx < 28)                          // Check if bus index is valid (max 28 buses)
+      int reset_bus_array_idx = reset_bus_idx_param_val - 1;
+      if (reset_bus_array_idx < 28)
       {
         float current_sample_reset_cv = busFrames[reset_bus_array_idx * num_frames_total + s_cv];
         if (current_sample_reset_cv > cv_threshold && self->prev_reset_cv_val <= cv_threshold)
         {
           PatternGenerator::Reset();
           for (int i = 0; i < 4; ++i)
-            self->trigger_on_samples_remaining[i] = 0;
-          self->debug_recent_reset = true; // Set debug flag
+          {
+            self->trigger_active_steps_remaining[i] = 0;
+          }
+          self->debug_recent_reset = true;
         }
         self->prev_reset_cv_val = current_sample_reset_cv;
       }
       else
       {
-        self->prev_reset_cv_val = 0.0f; // Invalid bus, treat as no signal
+        self->prev_reset_cv_val = 0.0f;
       }
     }
     else
     {
-      self->prev_reset_cv_val = 0.0f; // No bus selected, ensure previous state is low
+      self->prev_reset_cv_val = 0.0f;
     }
   } // End of CV input processing loop
 
-  // Get current trigger state from PatternGenerator (AFTER all potential ticks/resets in this block)
   uint8_t current_pattern_state = PatternGenerator::state_;
-  // self->debug_pg_state = current_pattern_state; // REMOVED - No longer storing for drawing
 
-  // --- Initiate trigger durations based on new events from PatternGenerator ---
-  const float desired_trigger_duration_seconds = 0.001f; // Set to 1ms as per original Grids
-  const uint32_t desired_trigger_samples = static_cast<uint32_t>(desired_trigger_duration_seconds * NT_globals.sampleRate);
-
-  // Trig 1 (output bit 0, array index 0)
-  if (current_pattern_state & (1 << 0))
-  { // Pattern bit is ON
-    if (self->trigger_on_samples_remaining[0] == 0 && self->debug_recent_clock_tick)
-    {
-      self->trigger_on_samples_remaining[0] = desired_trigger_samples;
-    }
+  // Trigger Initiation: If a clock ticked in this step, set duration for active pattern bits
+  if (tick_this_step)
+  {
+    if (current_pattern_state & (1 << 0))
+      self->trigger_active_steps_remaining[0] = NUM_TRIGGER_STEPS;
+    if (current_pattern_state & (1 << 1))
+      self->trigger_active_steps_remaining[1] = NUM_TRIGGER_STEPS;
+    if (current_pattern_state & (1 << 2))
+      self->trigger_active_steps_remaining[2] = NUM_TRIGGER_STEPS;
+    if (current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT)
+      self->trigger_active_steps_remaining[3] = NUM_TRIGGER_STEPS;
   }
-  else
-  { // Pattern bit is OFF
-    self->trigger_on_samples_remaining[0] = 0;
-  }
-
-  // Trig 2 (output bit 1, array index 1)
-  if (current_pattern_state & (1 << 1))
-  { // Pattern bit is ON
-    if (self->trigger_on_samples_remaining[1] == 0 && self->debug_recent_clock_tick)
-    {
-      self->trigger_on_samples_remaining[1] = desired_trigger_samples;
-    }
-  }
-  else
-  { // Pattern bit is OFF
-    self->trigger_on_samples_remaining[1] = 0;
-  }
-
-  // Trig 3 (output bit 2, array index 2)
-  if (current_pattern_state & (1 << 2))
-  { // Pattern bit is ON
-    if (self->trigger_on_samples_remaining[2] == 0 && self->debug_recent_clock_tick)
-    {
-      self->trigger_on_samples_remaining[2] = desired_trigger_samples;
-    }
-  }
-  else
-  { // Pattern bit is OFF
-    self->trigger_on_samples_remaining[2] = 0;
-  }
-
-  // Accent (output bit nt_grids_port::grids::OUTPUT_BIT_ACCENT, array index 3)
-  if (current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT)
-  { // Pattern bit is ON
-    if (self->trigger_on_samples_remaining[3] == 0 && self->debug_recent_clock_tick)
-    {
-      self->trigger_on_samples_remaining[3] = desired_trigger_samples;
-    }
-  }
-  else
-  { // Pattern bit is OFF
-    self->trigger_on_samples_remaining[3] = 0;
-  }
-  // Note: self->debug_recent_clock_tick is cleared by the draw function after being displayed,
-  // or effectively per block as it's only set true during clock detection if a new tick occurs.
 
   // Main processing loop for each sample in the block
-  // Writing outputs to busFrames based on parameter routing
-  const float trigger_on_voltage = 5.0f; // Set to +5V as per original Grids
+  const float trigger_on_voltage = 5.0f;
   const float trigger_off_voltage = 0.0f;
 
   for (int s = 0; s < num_frames_total; ++s)
   {
-    // Trig 1 Output
-    int bus_idx_trig1 = self->v[kParamOutputTrig1] - 1; // self->v is inherited const int16_t*
-    if (bus_idx_trig1 >= 0 && bus_idx_trig1 < 28)
+    for (int i = 0; i < 4; ++i) // Loop through 4 triggers (Trig1, Trig2, Trig3, Accent)
     {
-      bool replace_mode_trig1 = self->v[kParamOutputTrig1Mode]; // self->v is inherited const int16_t*
-      float value_to_write_trig1;
-      if (self->trigger_on_samples_remaining[0] > 0)
-      {
-        value_to_write_trig1 = trigger_on_voltage;
-        self->trigger_on_samples_remaining[0]--;
-      }
-      else
-      {
-        value_to_write_trig1 = trigger_off_voltage;
-      }
+      ParameterIndex bus_param_idx;
+      ParameterIndex mode_param_idx;
 
-      if (replace_mode_trig1)
-      {
-        busFrames[bus_idx_trig1 * num_frames_total + s] = value_to_write_trig1;
-      }
-      else
-      {
-        busFrames[bus_idx_trig1 * num_frames_total + s] += value_to_write_trig1;
-      }
-    }
+      // Determine the correct parameter indices for the current trigger
+      // This assumes kParamOutputTrig1, kParamOutputTrig1Mode, kParamOutputTrig2, etc.
+      // are contiguous in the enum, which they are based on the initial setup.
+      // Trig1: kParamOutputTrig1, kParamOutputTrig1Mode
+      // Trig2: kParamOutputTrig2, kParamOutputTrig2Mode (offset by 2 from Trig1 params)
+      // Trig3: kParamOutputTrig3, kParamOutputTrig3Mode (offset by 4 from Trig1 params)
+      // Accent: kParamOutputAccent, kParamOutputAccentMode (offset by 6 from Trig1 params)
+      bus_param_idx = (ParameterIndex)(kParamOutputTrig1 + (i * 2));
+      mode_param_idx = (ParameterIndex)(kParamOutputTrig1Mode + (i * 2));
 
-    // Trig 2 Output
-    int bus_idx_trig2 = self->v[kParamOutputTrig2] - 1; // self->v is inherited const int16_t*
-    if (bus_idx_trig2 >= 0 && bus_idx_trig2 < 28)
-    {
-      bool replace_mode_trig2 = self->v[kParamOutputTrig2Mode]; // self->v is inherited const int16_t*
-      float value_to_write_trig2;
-      if (self->trigger_on_samples_remaining[1] > 0)
+      int bus_idx = self->v[bus_param_idx] - 1; // v is inherited const int16_t*
+      if (bus_idx >= 0 && bus_idx < 28)         // Max 28 buses
       {
-        value_to_write_trig2 = trigger_on_voltage;
-        self->trigger_on_samples_remaining[1]--;
-      }
-      else
-      {
-        value_to_write_trig2 = trigger_off_voltage;
-      }
+        bool replace_mode = self->v[mode_param_idx];
+        float value_to_write = (self->trigger_active_steps_remaining[i] > 0) ? trigger_on_voltage : trigger_off_voltage;
 
-      if (replace_mode_trig2)
-      {
-        busFrames[bus_idx_trig2 * num_frames_total + s] = value_to_write_trig2;
-      }
-      else
-      {
-        busFrames[bus_idx_trig2 * num_frames_total + s] += value_to_write_trig2;
-      }
-    }
-
-    // Trig 3 Output
-    int bus_idx_trig3 = self->v[kParamOutputTrig3] - 1; // self->v is inherited const int16_t*
-    if (bus_idx_trig3 >= 0 && bus_idx_trig3 < 28)
-    {
-      bool replace_mode_trig3 = self->v[kParamOutputTrig3Mode]; // self->v is inherited const int16_t*
-      float value_to_write_trig3;
-      if (self->trigger_on_samples_remaining[2] > 0)
-      {
-        value_to_write_trig3 = trigger_on_voltage;
-        self->trigger_on_samples_remaining[2]--;
-      }
-      else
-      {
-        value_to_write_trig3 = trigger_off_voltage;
-      }
-
-      if (replace_mode_trig3)
-      {
-        busFrames[bus_idx_trig3 * num_frames_total + s] = value_to_write_trig3;
-      }
-      else
-      {
-        busFrames[bus_idx_trig3 * num_frames_total + s] += value_to_write_trig3;
-      }
-    }
-
-    // Accent Output
-    int bus_idx_accent = self->v[kParamOutputAccent] - 1; // self->v is inherited const int16_t*
-    if (bus_idx_accent >= 0 && bus_idx_accent < 28)
-    {
-      bool replace_mode_accent = self->v[kParamOutputAccentMode]; // self->v is inherited const int16_t*
-      float value_to_write_accent;
-      if (self->trigger_on_samples_remaining[3] > 0)
-      {
-        value_to_write_accent = trigger_on_voltage;
-        self->trigger_on_samples_remaining[3]--;
-      }
-      else
-      {
-        value_to_write_accent = trigger_off_voltage;
-      }
-
-      if (replace_mode_accent)
-      {
-        busFrames[bus_idx_accent * num_frames_total + s] = value_to_write_accent;
-      }
-      else
-      {
-        busFrames[bus_idx_accent * num_frames_total + s] += value_to_write_accent;
+        if (replace_mode)
+        {
+          busFrames[bus_idx * num_frames_total + s] = value_to_write;
+        }
+        else
+        {
+          busFrames[bus_idx * num_frames_total + s] += value_to_write;
+        }
       }
     }
   }
 
-  // Clear the per-step clock tick flag after it has been used for this block's logic.
-  // This prevents re-triggering if draw() is not called to clear it when the host clock stops.
+  // Countdown active trigger steps at the end of the block processing
+  for (int i = 0; i < 4; ++i)
+  {
+    if (self->trigger_active_steps_remaining[i] > 0)
+    {
+      self->trigger_active_steps_remaining[i]--;
+    }
+  }
+
+  // Clear the global per-step clock tick flag for UI AFTER it has been used for this block's logic.
   self->debug_recent_clock_tick = false;
-  // self->debug_recent_reset can also be cleared here if similar issues arise with reset,
-  // but reset is usually a one-shot event.
 }
 
 // --- Custom UI Callback Implementations (all static as per example) ---
