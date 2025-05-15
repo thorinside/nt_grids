@@ -88,10 +88,10 @@ void TakeoverPot::syncPhysicalValue(float physical_pot_value)
 }
 
 // Private helper to set parameter value, handling clamping and UI update call
-void TakeoverPot::setParameter(ParameterIndex param_to_set, int32_t value)
+int32_t TakeoverPot::setParameter(ParameterIndex param_to_set, int32_t value)
 {
   if (!m_algo || !m_platform_adapter)
-    return;
+    return value; // Or some indicator of error / unchanged value if preferred for non-call
 
   // Clamp value using s_parameters
   if (param_to_set >= 0 && param_to_set < kNumParameters)
@@ -110,12 +110,13 @@ void TakeoverPot::setParameter(ParameterIndex param_to_set, int32_t value)
   }
   else
   {
-    return; // Invalid parameter index
+    return value; // Invalid parameter index, return original value (or handle error)
   }
 
   uint32_t alg_idx = m_platform_adapter->getAlgorithmIndex(m_algo);
   uint32_t param_offset = m_platform_adapter->getParameterOffset();
   m_platform_adapter->setParameterFromUi(alg_idx, param_to_set + param_offset, value);
+  return value; // Return the (potentially clamped) value that was set
 }
 
 // Main update logic called from nt_grids_custom_ui
@@ -125,74 +126,100 @@ void TakeoverPot::update(const _NT_uiData &data)
     return;
 
   float current_physical_value = data.pots[m_pot_index];
-  ParameterIndex active_param_for_this_cycle = m_is_controlling_alternate && m_has_alternate ? m_alternate_param : m_primary_param;
-  float active_scale_for_this_cycle = m_is_controlling_alternate && m_has_alternate ? m_alternate_scale : m_primary_scale;
 
+  // Handle initial sync after configuration.
+  // m_is_controlling_alternate should be correctly set by configure() or resetTakeover...()
+  // before this update is called for the first time after config.
   if (m_needs_initial_sync_after_config)
   {
-    // This is the first update after this pot was configured (or re-configured).
-    // active_param_for_this_cycle should be correct based on initial m_is_controlling_alternate (false).
-    m_held_parameter_value = m_algo->v[active_param_for_this_cycle]; // Should be preset value by now.
-    m_physical_pot_at_hold_start = current_physical_value;           // Uses data.pots[] which was set by setupUi.
+    ParameterIndex param_for_initial_sync = (m_is_controlling_alternate && m_has_alternate) ? m_alternate_param : m_primary_param;
+    m_held_parameter_value = m_algo->v[param_for_initial_sync];
+    m_physical_pot_at_hold_start = current_physical_value;
     m_state = TakeoverState::HOLDING_WAIT_FOR_MOVE;
     m_needs_initial_sync_after_config = false;
     // m_prev_physical_value will be updated at the end of this function.
-    // No actual parameter change here, just setup for hold.
   }
 
-  // --- Determine active parameter and its current value from algo state (can change due to buttons) ---
-  // Re-evaluate active_param for button logic, m_held_parameter_value will update if state changes
-  active_param_for_this_cycle = m_primary_param;
-  active_scale_for_this_cycle = m_primary_scale;
-  // int16_t current_param_value_from_algo = m_algo->v[m_primary_param]; // Not needed if m_held_parameter_value is source of truth
-
-  bool was_controlling_alternate = m_is_controlling_alternate;
-
-  // --- Handle Button Transitions for Pot R (Chaos in Drum Mode) ---
+  // --- Handle Button Logic and Update m_is_controlling_alternate ---
+  // This section solely focuses on setting m_is_controlling_alternate
+  // and re-syncing takeover state (m_held_parameter_value, etc.) if a switch occurs.
   bool is_drum_mode = (m_algo->v[kParamMode] == 1);
-  if (is_drum_mode && m_has_alternate && m_pot_index == 2)
-  {
-    bool potR_button_current = (data.buttons & kNT_potButtonR);
-    bool potR_button_last = (data.lastButtons & kNT_potButtonR);
-    bool button_just_pressed = potR_button_current && !potR_button_last;
-    bool button_just_released = !potR_button_current && potR_button_last;
 
-    if (button_just_pressed)
+  if (is_drum_mode && m_has_alternate && m_pot_index == 2) // Pot R (Chaos)
+  {
+    bool button_currently_pressed = (data.buttons & kNT_potButtonR);
+    bool button_pressed_last_cycle = (data.lastButtons & kNT_potButtonR);
+    bool button_just_became_pressed = button_currently_pressed && !button_pressed_last_cycle;
+    bool button_just_became_released = !button_currently_pressed && button_pressed_last_cycle;
+
+    if (button_just_became_pressed)
     {
-      m_is_controlling_alternate = true;
-      active_param_for_this_cycle = m_alternate_param;
-      active_scale_for_this_cycle = m_alternate_scale;
-      m_held_parameter_value = m_algo->v[active_param_for_this_cycle];
-      m_physical_pot_at_hold_start = current_physical_value;
-      m_state = TakeoverState::HOLDING_WAIT_FOR_MOVE;
+      if (!m_is_controlling_alternate) // If not already true
+      {
+        m_is_controlling_alternate = true;
+        // Sync state for newly targeted alternate parameter
+        m_held_parameter_value = m_algo->v[m_alternate_param];
+        m_physical_pot_at_hold_start = current_physical_value;
+        m_state = TakeoverState::HOLDING_WAIT_FOR_MOVE;
+      }
     }
-    else if (button_just_released)
+    else if (button_just_became_released)
+    {
+      if (m_is_controlling_alternate) // If it was true
+      {
+        m_is_controlling_alternate = false;
+        // Sync state for newly targeted primary parameter
+        m_held_parameter_value = m_algo->v[m_primary_param];
+        m_physical_pot_at_hold_start = current_physical_value;
+        m_state = TakeoverState::HOLDING_WAIT_FOR_MOVE;
+      }
+    }
+    // If button is held (button_currently_pressed and not just_became_pressed),
+    // m_is_controlling_alternate remains as set by the press. State is already synced.
+  }
+  else // Not the Chaos pot configuration (e.g. different pot, different mode, or m_has_alternate is false for this pot)
+  {
+    if (m_is_controlling_alternate) // If we were controlling alternate but context changed
     {
       m_is_controlling_alternate = false;
-      active_param_for_this_cycle = m_primary_param;
-      active_scale_for_this_cycle = m_primary_scale;
-      m_held_parameter_value = m_algo->v[active_param_for_this_cycle];
-      m_physical_pot_at_hold_start = current_physical_value;
-      m_state = TakeoverState::HOLDING_WAIT_FOR_MOVE;
+      // A full configure() via onModeActivated() should have set m_needs_initial_sync_after_config.
+      // The sync block at the start of update() handles this.
+      // If for some edge case sync flag isn't set, manually re-sync to primary:
+      if (!m_needs_initial_sync_after_config)
+      {
+        m_held_parameter_value = m_algo->v[m_primary_param];
+        m_physical_pot_at_hold_start = current_physical_value;
+        m_state = TakeoverState::HOLDING_WAIT_FOR_MOVE;
+      }
     }
+  }
+
+  // --- Now, derive active_param_for_this_cycle and active_scale_for_this_cycle ---
+  // This is based on the final state of m_is_controlling_alternate after button/context logic.
+  ParameterIndex active_param_for_this_cycle;
+  float active_scale_for_this_cycle;
+
+  if (m_is_controlling_alternate && m_has_alternate) // Ensure m_has_alternate is still true
+  {
+    active_param_for_this_cycle = m_alternate_param;
+    active_scale_for_this_cycle = m_alternate_scale;
   }
   else
   {
-    // If not the special chaos pot, or mode changed, ensure we target primary.
+    active_param_for_this_cycle = m_primary_param;
+    active_scale_for_this_cycle = m_primary_scale;
     if (m_is_controlling_alternate)
-    { // Was controlling alternate, but context changed (e.g. mode switch)
-      m_is_controlling_alternate = false;
-      active_param_for_this_cycle = m_primary_param; // Fallback to primary
-      active_scale_for_this_cycle = m_primary_scale;
-      // This situation implies a mode switch happened. The m_needs_initial_sync_after_config path
-      // (triggered by configure() in onModeActivated) should correctly re-initialize based on primary param.
-      // So, no need to explicitly set m_held_parameter_value or m_state here, as the sync flag handles it.
+    {                                     // If m_is_controlling_alternate is true but m_has_alternate is false
+      m_is_controlling_alternate = false; // Correct the flag
+      // And re-sync to primary if not already handled by initial sync
+      if (!m_needs_initial_sync_after_config)
+      {
+        m_held_parameter_value = m_algo->v[m_primary_param];
+        m_physical_pot_at_hold_start = current_physical_value;
+        m_state = TakeoverState::HOLDING_WAIT_FOR_MOVE;
+      }
     }
   }
-
-  // If button press/release just changed m_is_controlling_alternate, active_param_for_this_cycle is now updated.
-  // If m_needs_initial_sync_after_config was true, it's now false, and state is HOLDING_WAIT_FOR_MOVE.
-  // m_held_parameter_value and m_physical_pot_at_hold_start are set correctly for the current target.
 
   // --- Main State Machine for Pot Value Handling ---
   int32_t scaled_physical_target = static_cast<int32_t>((current_physical_value * active_scale_for_this_cycle) + 0.5f);
@@ -212,9 +239,8 @@ void TakeoverPot::update(const _NT_uiData &data)
 
       if (new_val != m_held_parameter_value)
       {
-        setParameter(active_param_for_this_cycle, new_val);
-        m_held_parameter_value = new_val;
-        if (new_val == scaled_physical_target)
+        m_held_parameter_value = setParameter(active_param_for_this_cycle, new_val);
+        if (m_held_parameter_value == scaled_physical_target)
         {
           m_state = TakeoverState::DIRECT_CONTROL;
         }
@@ -230,7 +256,7 @@ void TakeoverPot::update(const _NT_uiData &data)
     if (m_held_parameter_value == scaled_physical_target)
     {
       m_state = TakeoverState::DIRECT_CONTROL;
-      setParameter(active_param_for_this_cycle, scaled_physical_target);
+      m_held_parameter_value = setParameter(active_param_for_this_cycle, scaled_physical_target);
     }
     else if (current_physical_value != m_prev_physical_value)
     {
@@ -242,9 +268,8 @@ void TakeoverPot::update(const _NT_uiData &data)
 
       if (new_val != m_held_parameter_value)
       {
-        setParameter(active_param_for_this_cycle, new_val);
-        m_held_parameter_value = new_val;
-        if (new_val == scaled_physical_target)
+        m_held_parameter_value = setParameter(active_param_for_this_cycle, new_val);
+        if (m_held_parameter_value == scaled_physical_target)
         {
           m_state = TakeoverState::DIRECT_CONTROL;
         }
@@ -255,8 +280,7 @@ void TakeoverPot::update(const _NT_uiData &data)
   case TakeoverState::DIRECT_CONTROL:
     if (current_physical_value != m_prev_physical_value || m_prev_physical_value == -1.0f)
     {
-      setParameter(active_param_for_this_cycle, scaled_physical_target);
-      m_held_parameter_value = scaled_physical_target;
+      m_held_parameter_value = setParameter(active_param_for_this_cycle, scaled_physical_target);
     }
     break;
   }

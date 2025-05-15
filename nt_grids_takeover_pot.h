@@ -34,7 +34,7 @@ public:
 private:
   // Private helper function needs access to NT_setParameterFromUi, s_parameters, kNumParameters etc.
   // Implementation will be in the .cc file.
-  void setParameter(ParameterIndex param_to_set, int32_t value);
+  int32_t setParameter(ParameterIndex param_to_set, int32_t value);
 
   NtGridsAlgorithm *m_algo;                     // Pointer to the main algorithm state
   DistingNtPlatformAdapter *m_platform_adapter; // Added member for platform adapter
