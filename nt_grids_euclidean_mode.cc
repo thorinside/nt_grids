@@ -135,48 +135,40 @@ void EuclideanModeStrategy::processPotsUI(NtGridsAlgorithm *self, const _NT_uiDa
 }
 
 // Set up initial pot positions for Euclidean mode (Fill 1-3 or Length 1-3)
-void EuclideanModeStrategy::setupTakeoverPots(NtGridsAlgorithm *self, _NT_float3 &pots)
+void EuclideanModeStrategy::setupTakeoverPots(NtGridsAlgorithm *self, _NT_float3 &pots_out)
 {
+  if (!self)
+    return;
+
   for (int i = 0; i < 3; ++i)
   {
-    ParameterIndex primary_param_idx = m_euclidean_controls_length ? (ParameterIndex)(kParamEuclideanLength1 + i * 3) : (ParameterIndex)(kParamEuclideanFill1 + i * 3);
-    // Corrected indexing: each channel's params are 3 apart (L, F, S)
-    // However, the original intent here might be that pot i controls channel i,
-    // and m_euclidean_controls_length switches if it's Length or Fill.
-    // The kParamEuclideanLength1 + i assumes Length1, Length2, Length3 are contiguous, which they are NOT in ParameterIndex enum.
-    // kParamEuclideanLength1, kParamEuclideanFill1, kParamEuclideanShift1, kParamEuclideanLength2 ...
-    // So, for pot 0 controlling channel 1 (Length1 or Fill1):
-    // primary_param_idx = m_euclidean_controls_length ? kParamEuclideanLength1 : kParamEuclideanFill1;
-    // For pot 1 controlling channel 2 (Length2 or Fill2):
-    // primary_param_idx = m_euclidean_controls_length ? kParamEuclideanLength2 : kParamEuclideanFill2;
-    // For pot 2 controlling channel 3 (Length3 or Fill3):
-    // primary_param_idx = m_euclidean_controls_length ? kParamEuclideanLength3 : kParamEuclideanFill3;
+    ParameterIndex primary_idx;
+    ParameterIndex alternate_idx;
+    bool has_alternate;
+    float primary_scale;
+    float alternate_scale;
 
-    // Let's use a switch for clarity based on i (pot_index)
-    switch (i)
-    {
-    case 0: // Pot L, Channel 1
-      primary_param_idx = m_euclidean_controls_length ? kParamEuclideanLength1 : kParamEuclideanFill1;
-      break;
-    case 1: // Pot C, Channel 2
-      primary_param_idx = m_euclidean_controls_length ? kParamEuclideanLength2 : kParamEuclideanFill2;
-      break;
-    case 2: // Pot R, Channel 3
-      primary_param_idx = m_euclidean_controls_length ? kParamEuclideanLength3 : kParamEuclideanFill3;
-      break;
-    default: // Should not happen
-      primary_param_idx = kParamEuclideanLength1;
-      break;
+    determinePotConfig(self, i, primary_idx, alternate_idx, has_alternate, primary_scale, alternate_scale);
+    // self->m_pots[i].configure(primary_idx, alternate_idx, has_alternate, primary_scale, alternate_scale);
+    // configure() is now called in onModeActivated. Here we only care about sync for initial UI draw.
+
+    // Calculate the ideal physical pot position (0.0-1.0) that represents the current parameter value.
+    // This current parameter value SHOULD be the preset value at this stage.
+    float ideal_physical_pos = 0.0f;
+    if (primary_scale > 0.001f)
+    { // Avoid division by zero or tiny scales
+      ideal_physical_pos = static_cast<float>(self->v[primary_idx]) / primary_scale;
     }
+    // Clamp to 0.0 - 1.0.
+    if (ideal_physical_pos < 0.0f)
+      ideal_physical_pos = 0.0f;
+    if (ideal_physical_pos > 1.0f)
+      ideal_physical_pos = 1.0f;
 
-    float primary_scale = ((primary_param_idx == kParamEuclideanLength1 || primary_param_idx == kParamEuclideanLength2 || primary_param_idx == kParamEuclideanLength3) || (primary_param_idx == kParamEuclideanFill1 || primary_param_idx == kParamEuclideanFill2 || primary_param_idx == kParamEuclideanFill3 && self->v[primary_param_idx] > 16) // If fill somehow gets > 16, scale by 255. Else 16.
-                           )
-                              ? 16.0f
-                              : 16.0f; // Lengths (1-16), Fills (0-16). Max value is 16. Let's assume scale of 16 for simplicity.
-                                       // Original: primary_scale = m_euclidean_controls_length ? 32.0f : 255.0f; -- This seems wrong. Lengths are 1-16, Fills 0-16.
+    pots_out[i] = ideal_physical_pos; // Tell the firmware what data.pots[i] should be for the first custom_ui call.
 
-    pots[i] = (primary_scale > 0) ? ((float)self->v[primary_param_idx] / primary_scale) : 0.0f;
-    // self->m_pots[i].syncPhysicalValue(pots[i]); // REMOVED
+    // Now sync the TakeoverPot with this ideal physical position.
+    // self->m_pots[i].syncPhysicalValue(ideal_physical_pos); // REMOVED - Initial sync is handled by configure() + first update()
   }
 }
 

@@ -51,8 +51,9 @@ private:
 
   // State for takeover logic
   TakeoverState m_state;
-  int16_t m_held_parameter_value;     // Stores the parameter's value when HOLDING_WAIT_FOR_MOVE begins
-  float m_physical_pot_at_hold_start; // Physical pot position (0.0-1.0) when HOLDING_WAIT_FOR_MOVE began
+  int16_t m_held_parameter_value;         // Stores the parameter's value when HOLDING_WAIT_FOR_MOVE begins
+  float m_physical_pot_at_hold_start;     // Physical pot position (0.0-1.0) when HOLDING_WAIT_FOR_MOVE began
+  bool m_needs_initial_sync_after_config; // Flag to trigger full sync on first update() after configure()
 };
 
 #endif // NT_GRIDS_TAKEOVER_POT_H

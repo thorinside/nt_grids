@@ -75,30 +75,44 @@ void DrumModeStrategy::processPotsUI(NtGridsAlgorithm *self, const _NT_uiData &d
 }
 
 // Set up initial pot positions for Drum mode (Density1-3)
-void DrumModeStrategy::setupTakeoverPots(NtGridsAlgorithm *self, _NT_float3 &pots)
+void DrumModeStrategy::setupTakeoverPots(NtGridsAlgorithm *self, _NT_float3 &pots_out)
 {
+  if (!self)
+    return;
+
   for (int i = 0; i < 3; ++i)
   {
-    ParameterIndex primary_param_idx;
+    ParameterIndex primary_idx;
+    ParameterIndex alternate_idx;
+    bool has_alternate;
     float primary_scale;
-    // Only Density1,2,3 for Drum mode
-    switch (i)
-    {
-    case 0:
-      primary_param_idx = kParamDrumDensity1;
-      break;
-    case 1:
-      primary_param_idx = kParamDrumDensity2;
-      break;
-    case 2:
-      primary_param_idx = kParamDrumDensity3;
-      break;
-    default:
-      primary_param_idx = kParamDrumDensity1;
-      break;
+    float alternate_scale;
+
+    determinePotConfig(self, i, primary_idx, alternate_idx, has_alternate, primary_scale, alternate_scale);
+    // self->m_pots[i].configure(primary_idx, alternate_idx, has_alternate, primary_scale, alternate_scale);
+    // configure() is now called in onModeActivated. Here we only care about sync for initial UI draw.
+
+    // Calculate the ideal physical pot position (0.0-1.0) that represents the current parameter value.
+    // This current parameter value SHOULD be the preset value at this stage.
+    float ideal_physical_pos = 0.0f;
+    if (primary_scale > 0.001f)
+    { // Avoid division by zero or tiny scales
+      ideal_physical_pos = static_cast<float>(self->v[primary_idx]) / primary_scale;
     }
-    primary_scale = 255.0f;
-    pots[i] = (primary_scale > 0) ? ((float)self->v[primary_param_idx] / primary_scale) : 0.0f;
+    // Clamp to 0.0 - 1.0, though scaled parameters should ideally fall within this.
+    if (ideal_physical_pos < 0.0f)
+      ideal_physical_pos = 0.0f;
+    if (ideal_physical_pos > 1.0f)
+      ideal_physical_pos = 1.0f;
+
+    pots_out[i] = ideal_physical_pos; // Tell the firmware what data.pots[i] should be for the first custom_ui call.
+
+    // Now sync the TakeoverPot with this ideal physical position.
+    // m_held_parameter_value will be set from self->v[primary_idx] (the preset value).
+    // m_physical_pot_at_hold_start will be ideal_physical_pos.
+    // State will be HOLDING_WAIT_FOR_MOVE.
+    // The first custom_ui call will see data.pots[i] == ideal_physical_pos, so no change will occur until user moves the actual hardware.
+    // self->m_pots[i].syncPhysicalValue(ideal_physical_pos); // REMOVED - Initial sync is handled by configure() + first update()
   }
 }
 
