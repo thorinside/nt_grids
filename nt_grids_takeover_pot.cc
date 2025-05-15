@@ -17,8 +17,7 @@ TakeoverPot::TakeoverPot() : m_algo(nullptr),
                              m_alternate_scale(255.0f),
                              m_is_controlling_alternate(false),
                              m_prev_physical_value(-1.0f),
-                             m_state(TakeoverState::DIRECT_CONTROL), // Start in direct control or an initial hold?
-                                                                     // Let's assume DIRECT_CONTROL until first configure/sync.
+                             m_state(TakeoverState::DIRECT_CONTROL), // Initial state; first update() call after configure() establishes proper HOLDING state.
                              m_held_parameter_value(0),
                              m_physical_pot_at_hold_start(0.0f),
                              m_needs_initial_sync_after_config(true) // Initialize to true
@@ -41,8 +40,7 @@ void TakeoverPot::init(NtGridsAlgorithm *algo, int pot_index, DistingNtPlatformA
   // Reset state
   m_is_controlling_alternate = false;
   m_prev_physical_value = -1.0f;
-  m_state = TakeoverState::DIRECT_CONTROL; // Or HOLDING_WAIT_FOR_MOVE if params are known?
-                                           // For now, DIRECT_CONTROL, syncPhysicalValue will set it up.
+  m_state = TakeoverState::DIRECT_CONTROL; // Initial state; first update() call after configure() establishes proper HOLDING state.
   m_held_parameter_value = 0;
   m_physical_pot_at_hold_start = 0.0f;
   m_needs_initial_sync_after_config = true; // Initialize to true
@@ -55,30 +53,26 @@ void TakeoverPot::configure(ParameterIndex p, ParameterIndex a, bool h, float ps
   m_has_alternate = h;
   m_primary_scale = (ps > 0) ? ps : 1.0f;
   m_alternate_scale = (as > 0) ? as : 1.0f;
-  // When configured, assume the primary parameter is now active. Potentially enter HOLDING state.
-  // This will be properly set by syncPhysicalValue or resetTakeoverForModeSwitch typically called after configure.
-  m_needs_initial_sync_after_config = true; // Set flag when configured
+  // This pot is now (re)configured. Flag it so the next update() performs a full sync
+  // to the current parameter value and physical pot position, establishing a new hold state.
+  m_needs_initial_sync_after_config = true;
 }
 
-void TakeoverPot::resetTakeoverForModeSwitch(int16_t current_value_of_new_primary_param)
+// Called when mode changes or primary parameter focus might change (e.g., Euclidean Length/Fill toggle).
+// Ensures the pot is flagged for re-synchronization on its next update().
+// The mode strategy's onModeActivated() or relevant button handlers are responsible for calling
+// configure() first, which sets m_needs_initial_sync_after_config.
+// These reset methods ensure m_is_controlling_alternate is appropriately set to false and
+// redundantly set the sync flag for robustness, anticipating a configure() call from the strategy.
+void TakeoverPot::resetTakeoverForModeSwitch()
 {
-  // This function is called when the mode changes. The new primary parameter for this pot
-  // in the new mode will be determined by the strategy's determinePotConfig, and then
-  // configure() will be called by onModeActivated. So, this function might be redundant
-  // if onModeActivated reliably calls configure().
-  // However, to be safe and ensure m_needs_initial_sync_after_config is set upon mode switch:
-  // We assume configure() will be called externally by the mode strategy after this.
-  // For now, let's ensure the flag is set if this pot is re-evaluated.
-  // The actual parameter values for m_held_parameter_value will be picked up in the first update().
   m_is_controlling_alternate = false; // Default to primary after mode switch
   m_needs_initial_sync_after_config = true;
 }
 
-void TakeoverPot::resetTakeoverForNewPrimary(int16_t current_value_of_new_primary_param)
+void TakeoverPot::resetTakeoverForNewPrimary()
 {
-  // Similar to above, configure() called by the strategy (e.g. Euclidean when toggling Length/Fill)
-  // is the main path. This function primarily ensures state is ready for that re-config.
-  m_is_controlling_alternate = false;
+  m_is_controlling_alternate = false; // Default to primary when focus changes (e.g. Length/Fill toggle)
   m_needs_initial_sync_after_config = true;
 }
 

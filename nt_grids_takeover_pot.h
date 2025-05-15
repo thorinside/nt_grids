@@ -26,8 +26,8 @@ public:
   void init(NtGridsAlgorithm *algo, int pot_index, DistingNtPlatformAdapter *platform_adapter);
   void configure(ParameterIndex primary_param, ParameterIndex alternate_param, bool has_alternate,
                  float primary_scale, float alternate_scale);
-  void resetTakeoverForModeSwitch(int16_t new_primary_param_value);
-  void resetTakeoverForNewPrimary(int16_t new_primary_param_value);
+  void resetTakeoverForModeSwitch();
+  void resetTakeoverForNewPrimary();
   void syncPhysicalValue(float physical_pot_value);
   void update(const _NT_uiData &data);
 

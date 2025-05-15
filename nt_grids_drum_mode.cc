@@ -14,10 +14,6 @@
 // DrumModeStrategy constructor - ensure it doesn't configure pots.
 // Default constructor is fine if it does no work related to self_algo_for_init->m_pots.
 // Removed definition here, as it's defaulted in the header.
-// DrumModeStrategy::DrumModeStrategy()
-// {
-//   // Constructor should be empty or only initialize its own members not dependent on NtGridsAlgorithm state.
-// }
 
 // Handle encoder input for Drum mode (Map X and Map Y)
 void DrumModeStrategy::handleEncoderInput(NtGridsAlgorithm *self, const _NT_uiData &data, int encoder_idx)

@@ -88,9 +88,6 @@ void EuclideanModeStrategy::handleEncoderInput(NtGridsAlgorithm *self, const _NT
 // Process pots for Euclidean mode (Fill/Length, toggling with m_euclidean_controls_length)
 void EuclideanModeStrategy::processPotsUI(NtGridsAlgorithm *self, const _NT_uiData &data)
 {
-  // const float max_param_255 = 255.0f; // Unused locally
-  // const float max_param_32 = 32.0f;   // Unused locally
-
   for (int i = 0; i < 3; ++i) // Pot 0, 1, 2
   {
     // ParameterIndex primary_param_idx, alternate_param_idx;
@@ -129,7 +126,7 @@ void EuclideanModeStrategy::processPotsUI(NtGridsAlgorithm *self, const _NT_uiDa
       determinePotConfig(self, i, primary_idx, alt_idx, has_alt, p_scale, a_scale);
       self->m_pots[i].configure(primary_idx, alt_idx, has_alt, p_scale, a_scale);
       // Pots also need their takeover state reset for the new primary param
-      self->m_pots[i].resetTakeoverForNewPrimary(self->v[primary_idx] / (p_scale > 0 ? p_scale : 1.0f));
+      self->m_pots[i].resetTakeoverForNewPrimary();
     }
   }
 }
@@ -203,9 +200,7 @@ void EuclideanModeStrategy::drawModeUI(NtGridsAlgorithm *self, int y_start, _NT_
   const int CHAR_WIDTH_PX = 8; // Assuming text_size makes chars 8px wide
   // const int SCREEN_WIDTH_CHARS = SCREEN_WIDTH_PX / CHAR_WIDTH_PX; // 32
 
-  // char full_line_for_width_calc[MAX_PARAM_STRING_LENGTH * 6 + 10]; // Generous buffer for width calculation - REMOVED
   int total_line_chars = 0;
-  // full_line_for_width_calc[0] = '\0'; // REMOVED
 
   // --- Stage 1: Calculate total character length of the line for centering ---
   for (int i = 0; i < 3; ++i)
@@ -309,7 +304,6 @@ void EuclideanModeStrategy::drawModeUI(NtGridsAlgorithm *self, int y_start, _NT_
 // Called when Euclidean mode is activated
 void EuclideanModeStrategy::onModeActivated(NtGridsAlgorithm *self)
 {
-  // TESTING_BUILD block removed
   if (!self)
     return;
 
