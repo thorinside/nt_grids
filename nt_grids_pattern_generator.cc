@@ -82,10 +82,6 @@ namespace nt_grids_port
 
       options_.output_mode = OUTPUT_MODE_DRUMS; // Corrected
       state_ = 0;
-      // tap_tempo_count_ = 0; // REMOVED
-      // tap_tempo_sum_ = 0; // REMOVED
-      // tempo_ = 0; // REMOVED
-      // set_tempo_mode_ = false; // REMOVED
       beat_counter_ = 0;
       sequence_step_ = 0;
       internal_clock_ticks_ = 0;
@@ -101,9 +97,7 @@ namespace nt_grids_port
 
       options_.clock_resolution = CLOCK_RESOLUTION_24_PPQN; // Default from original Grids firmware options
       options_.output_clock = false;
-      // options_.tap_tempo = false; // REMOVED from struct
       options_.gate_mode = false;
-      // options_.swing = false; // Removed: Swing functionality is being removed
 
       // Default settings for Drum mode
       settings_[OUTPUT_MODE_DRUMS].options.drums.x = 128;        // Center of map
@@ -121,9 +115,6 @@ namespace nt_grids_port
         fill_[i] = 8;                                      // Default fill: 8 steps (50% for a 16-step length)
         settings_[OUTPUT_MODE_EUCLIDEAN].density[i] = 128; // Density 128/255 maps to ~8 steps for a 16-step length
       }
-
-      // Random number generator initialization is typically handled by the main plugin entry (nt_grids.cc)
-      // nt_grids_port::Random::Init();
     }
 
     void PatternGenerator::Reset()

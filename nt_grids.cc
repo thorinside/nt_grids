@@ -44,24 +44,29 @@ static const char *kEnumBooleanStrings[] = {"Off", "On", NULL};
 // clang-format off
 const _NT_parameter s_parameters[] = {
     {.name = "Mode", .min = 0, .max = 1, .def = 1, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = kEnumModeStrings},
-    {.name = "Chaos", .min = 0, .max = 1, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = kEnumBooleanStrings},
+    {.name = "Chaos Enable", .min = 0, .max = 1, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = kEnumBooleanStrings},
     {.name = "Chaos Amount", .min = 0, .max = 255, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    NT_PARAMETER_CV_INPUT("Clock In", 0, 0)
-    NT_PARAMETER_CV_INPUT("Reset In", 0, 0){.name = "Map X", .min = 0, .max = 255, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Map Y", .min = 0, .max = 255, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Density 1", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Density 2", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Density 3", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Length 1", .min = 1, .max = 32, .def = 16, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Length 2", .min = 1, .max = 32, .def = 16, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Length 3", .min = 1, .max = 32, .def = 16, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Fill 1", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Fill 2", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    {.name = "Fill 3", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 1 Out", 0, 13)
-    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 2 Out", 0, 14)
-    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 3 Out", 0, 15)
-    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Accent Out", 0, 16)
+    {.name = "Drum Map X", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Drum Map Y", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Drum Density 1", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Drum Density 2", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Drum Density 3", .min = 0, .max = 255, .def = 128, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Len/Ctrl", .min = 0, .max = 2, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = (const char*[]){"Length", "Fill", "Shift", NULL}},
+    {.name = "Euclid Length 1", .min = 1, .max = 16, .def = 8, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Fill 1", .min = 0, .max = 16, .def = 4, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Shift 1", .min = 0, .max = 15, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Length 2", .min = 1, .max = 16, .def = 8, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Fill 2", .min = 0, .max = 16, .def = 4, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Shift 2", .min = 0, .max = 15, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Length 3", .min = 1, .max = 16, .def = 8, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Fill 3", .min = 0, .max = 16, .def = 4, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "Euclid Shift 3", .min = 0, .max = 15, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    NT_PARAMETER_AUDIO_INPUT("Clock In", 0, 0)
+    NT_PARAMETER_AUDIO_INPUT("Reset In", 0, 0)
+    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Trig 1 Out", 1, 0)
+    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Trig 2 Out", 2, 0)
+    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Trig 3 Out", 3, 0)
+    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Accent Out", 4, 0)
 };
 // clang-format on
 // Note: kNumParameters enum value must match the size implicitly
@@ -73,16 +78,15 @@ static const uint8_t s_page_main[] = {
     kParamMode,
     kParamChaosEnable,
     kParamChaosAmount,
-    // kParamClockInput, // Removed, moved to Routing page
-    // kParamResetInput, // Removed, moved to Routing page
 };
 static const uint8_t s_page_drum[] = {
     kParamDrumMapX, kParamDrumMapY, kParamChaosAmount,
     kParamDrumDensity1, kParamDrumDensity2, kParamDrumDensity3};
 static const uint8_t s_page_euclidean[] = {
-    kParamEuclideanLength1, kParamEuclideanFill1,
-    kParamEuclideanLength2, kParamEuclideanFill2,
-    kParamEuclideanLength3, kParamEuclideanFill3};
+    kParamEuclideanControlsLength, // Added to page
+    kParamEuclideanLength1, kParamEuclideanFill1, kParamEuclideanShift1,
+    kParamEuclideanLength2, kParamEuclideanFill2, kParamEuclideanShift2,
+    kParamEuclideanLength3, kParamEuclideanFill3, kParamEuclideanShift3};
 static const uint8_t s_page_routing[] = {
     kParamClockInput,
     kParamResetInput,
@@ -98,7 +102,7 @@ static const _NT_parameterPage s_pages[] = {
     {.name = "Routing", .numParams = ARRAY_SIZE(s_page_routing), .params = s_page_routing},
 };
 
-_NT_parameterPages parameterPages = {
+const _NT_parameterPages parameterPages = {
     .numPages = ARRAY_SIZE(s_pages),
     .pages = s_pages,
 };
@@ -131,11 +135,14 @@ static void update_grids_from_params(const int16_t *param_values) // Changed to 
   {
     for (int i = 0; i < nt_grids_port::kNumParts; ++i)
     {
-      uint8_t length = (uint8_t)param_values[kParamEuclideanLength1 + i];
+      uint8_t length = (uint8_t)param_values[kParamEuclideanLength1 + i * 3]; // Corrected indexing for Length, Fill, Shift
       PatternGenerator::SetLength(i, length);
 
-      uint8_t fill_density_param_val = (uint8_t)param_values[kParamEuclideanFill1 + i];
+      uint8_t fill_density_param_val = (uint8_t)param_values[kParamEuclideanFill1 + i * 3]; // Corrected indexing
       PatternGenerator::SetFill(i, fill_density_param_val);
+
+      // uint8_t shift_param_val = (uint8_t)param_values[kParamEuclideanShift1 + i * 3]; // Corrected indexing
+      // PatternGenerator::SetShift(i, shift_param_val);
     }
   }
 
@@ -151,6 +158,30 @@ static void update_grids_from_params(const int16_t *param_values) // Changed to 
   {
     PatternGenerator::settings_[OUTPUT_MODE_DRUMS].options.drums.randomness = 0;
     PatternGenerator::settings_[OUTPUT_MODE_EUCLIDEAN].options.euclidean.chaos_amount = 0;
+  }
+}
+
+// --- NtGridsAlgorithm Constructor Definition ---
+NtGridsAlgorithm::NtGridsAlgorithm()
+    : m_platform_adapter(this),
+      m_euclidean_mode_strategy(this)
+{
+  prev_clock_cv_val = 0.0f;
+  prev_reset_cv_val = 0.0f;
+  for (int i = 0; i < 4; ++i)
+  {
+    trigger_active_steps_remaining[i] = 0;
+  }
+  debug_recent_clock_tick = false;
+  debug_recent_reset = false;
+  memset(debug_param_changed_flags, 0, sizeof(debug_param_changed_flags));
+  m_last_mode = -1; // Initialize to an invalid mode to ensure first mode set is detected
+  m_current_mode_strategy = nullptr;
+
+  // Initialize TakeoverPots
+  for (int i = 0; i < 3; ++i)
+  {
+    m_pots[i].init(this, i, &m_platform_adapter);
   }
 }
 
@@ -179,37 +210,31 @@ static void nt_grids_calculate_requirements(_NT_algorithmRequirements &req, cons
 // Original Signature for construct
 static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, const _NT_algorithmRequirements &req, const int32_t *specifications)
 {
+  // Use placement new for NtGridsAlgorithm itself, which calls the constructor above.
   NtGridsAlgorithm *alg = new (ptrs.sram) NtGridsAlgorithm();
+
   // Initialize inherited members:
   alg->parameters = s_parameters;
   alg->parameterPages = &parameterPages;
 
-  // Initialize algorithm-specific state:
-  alg->prev_clock_cv_val = 0.0f;
-  alg->prev_reset_cv_val = 0.0f;
+  // m_platform_adapter is now a direct member, constructed by NtGridsAlgorithm's constructor.
 
-  for (int i = 0; i < 4; ++i)
-  {
-    alg->trigger_active_steps_remaining[i] = 0;
-  }
-
-  alg->debug_recent_clock_tick = false;
-  alg->debug_recent_reset = false;
-  for (int i = 0; i < kNumParameters; ++i)
-  {
-    alg->debug_param_changed_flags[i] = false;
-  }
-
-  // Initialize TakeoverPot objects
-  for (int i = 0; i < 3; ++i)
-  {
-    alg->m_pots[i].init(alg, i);
-  }
-
-  // Initialize m_last_mode with the current mode from parameters
+  // Initialize m_last_mode (needs alg->v)
   alg->m_last_mode = alg->v[kParamMode];
-  // Initialize Euclidean control state
-  alg->m_euclidean_controls_length = false;
+
+  // Set the initial mode strategy (needs alg->v)
+  if (alg->v[kParamMode] == 1) // 1 is typically Drum Mode based on kEnumModeStrings
+  {
+    alg->m_current_mode_strategy = &alg->m_drum_mode_strategy;
+  }
+  else
+  {
+    alg->m_current_mode_strategy = &alg->m_euclidean_mode_strategy;
+  }
+  if (alg->m_current_mode_strategy) // Check before dereferencing
+  {
+    alg->m_current_mode_strategy->onModeActivated(alg);
+  }
 
   update_grids_from_params(alg->v);
   nt_grids_port::grids::PatternGenerator::Reset();
@@ -219,16 +244,40 @@ static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, co
 // Original Signature for parameterChanged
 static void nt_grids_parameter_changed(_NT_algorithm *self_base, int p_idx)
 {
-  // self_base is already _NT_algorithm*. If NtGridsAlgorithm specific members need access, cast:
-  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Changed to static_cast due to inheritance
+  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base);
+  // if (p_idx >= 0 && p_idx < kNumParameters)
+  // {
+  //   self->debug_param_changed_flags[p_idx] = true;
+  // }
 
-  if (p_idx >= 0 && p_idx < kNumParameters) // kNumParameters should match the count for self_base->v
+  if (p_idx == kParamMode)
   {
-    // No longer need to copy to a local self->v. self_base->v *is* the source of truth.
-    // self->v (inherited) is self_base->v.
-    self->debug_param_changed_flags[p_idx] = true; // Still useful for UI debug
+    int16_t new_mode_val = self->v[kParamMode];
+    if (new_mode_val != self->m_last_mode)
+    {
+      // Deactivate old strategy
+      if (self->m_current_mode_strategy)
+      {
+        self->m_current_mode_strategy->onModeDeactivated(self);
+      }
+      self->m_last_mode = new_mode_val;
+      // Switch strategy pointer
+      if (new_mode_val == 1)
+      { // Drum Mode
+        self->m_current_mode_strategy = &self->m_drum_mode_strategy;
+      }
+      else
+      { // Euclidean Mode
+        self->m_current_mode_strategy = &self->m_euclidean_mode_strategy;
+      }
+      // Activate new strategy
+      if (self->m_current_mode_strategy)
+      {
+        self->m_current_mode_strategy->onModeActivated(self);
+      }
+    }
   }
-  update_grids_from_params(self_base->v); // Pass the host's parameter array directly
+  update_grids_from_params(self_base->v); // This is now active
 }
 
 // Original Signature for step, but with new internal logic
@@ -238,21 +287,17 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
   using nt_grids_port::grids::PatternGenerator;
   int num_frames_total = numFramesBy4 * 4; // Total samples in the block
 
-  // CV Input Handling: Iterate through each sample in the block for edge detection
   const float cv_threshold = 0.5f;
-  int clock_bus_idx_param_val = self->v[kParamClockInput];
-  int reset_bus_idx_param_val = self->v[kParamResetInput];
 
-  // Temporarily store debug_recent_clock_tick as it might be cleared before countdown
   bool tick_this_step = false;
 
   for (int s_cv = 0; s_cv < num_frames_total; ++s_cv)
   {
     // Clock Input Detection
-    if (clock_bus_idx_param_val > 0)
+    if (self->v[kParamClockInput] > 0) // Use self->v[] to access parameter value
     {
-      int clock_bus_array_idx = clock_bus_idx_param_val - 1;
-      if (clock_bus_array_idx < 28)
+      int clock_bus_array_idx = self->v[kParamClockInput] - 1;
+      if (clock_bus_array_idx < 28) // Max 28 CV buses on Disting EX
       {
         float current_sample_clock_cv = busFrames[clock_bus_array_idx * num_frames_total + s_cv];
         if (current_sample_clock_cv > cv_threshold && self->prev_clock_cv_val <= cv_threshold)
@@ -265,19 +310,19 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
       }
       else
       {
-        self->prev_clock_cv_val = 0.0f;
+        self->prev_clock_cv_val = 0.0f; // Invalid bus selected
       }
     }
     else
     {
-      self->prev_clock_cv_val = 0.0f;
+      self->prev_clock_cv_val = 0.0f; // Clock input is 'Off'
     }
 
     // Reset Input Detection
-    if (reset_bus_idx_param_val > 0)
+    if (self->v[kParamResetInput] > 0) // Use self->v[] to access parameter value
     {
-      int reset_bus_array_idx = reset_bus_idx_param_val - 1;
-      if (reset_bus_array_idx < 28)
+      int reset_bus_array_idx = self->v[kParamResetInput] - 1;
+      if (reset_bus_array_idx < 28) // Max 28 CV buses on Disting EX
       {
         float current_sample_reset_cv = busFrames[reset_bus_array_idx * num_frames_total + s_cv];
         if (current_sample_reset_cv > cv_threshold && self->prev_reset_cv_val <= cv_threshold)
@@ -293,12 +338,12 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
       }
       else
       {
-        self->prev_reset_cv_val = 0.0f;
+        self->prev_reset_cv_val = 0.0f; // Invalid bus selected
       }
     }
     else
     {
-      self->prev_reset_cv_val = 0.0f;
+      self->prev_reset_cv_val = 0.0f; // Reset input is 'Off'
     }
   } // End of CV input processing loop
 
@@ -328,15 +373,28 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
       ParameterIndex bus_param_idx;
       ParameterIndex mode_param_idx;
 
-      // Determine the correct parameter indices for the current trigger
-      // This assumes kParamOutputTrig1, kParamOutputTrig1Mode, kParamOutputTrig2, etc.
-      // are contiguous in the enum, which they are based on the initial setup.
-      // Trig1: kParamOutputTrig1, kParamOutputTrig1Mode
-      // Trig2: kParamOutputTrig2, kParamOutputTrig2Mode (offset by 2 from Trig1 params)
-      // Trig3: kParamOutputTrig3, kParamOutputTrig3Mode (offset by 4 from Trig1 params)
-      // Accent: kParamOutputAccent, kParamOutputAccentMode (offset by 6 from Trig1 params)
-      bus_param_idx = (ParameterIndex)(kParamOutputTrig1 + (i * 2));
-      mode_param_idx = (ParameterIndex)(kParamOutputTrig1Mode + (i * 2));
+      // Determine which parameters to use based on the trigger index 'i'
+      switch (i)
+      {
+      case 0: // Trig1
+        bus_param_idx = kParamOutputTrig1;
+        mode_param_idx = kParamOutputTrig1Mode;
+        break;
+      case 1: // Trig2
+        bus_param_idx = kParamOutputTrig2;
+        mode_param_idx = kParamOutputTrig2Mode;
+        break;
+      case 2: // Trig3
+        bus_param_idx = kParamOutputTrig3;
+        mode_param_idx = kParamOutputTrig3Mode;
+        break;
+      case 3: // Accent
+        bus_param_idx = kParamOutputAccent;
+        mode_param_idx = kParamOutputAccentMode;
+        break;
+      default: // Should not happen
+        continue;
+      }
 
       int bus_idx = self->v[bus_param_idx] - 1; // v is inherited const int16_t*
       if (bus_idx >= 0 && bus_idx < 28)         // Max 28 buses
@@ -365,8 +423,9 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
     }
   }
 
-  // Clear the global per-step clock tick flag for UI AFTER it has been used for this block's logic.
-  self->debug_recent_clock_tick = false;
+  // Flags are now cleared in draw()
+  // self->debug_recent_clock_tick = false;
+  // self->debug_recent_reset = false;
 }
 
 // --- Custom UI Callback Implementations (all static as per example) ---
@@ -379,38 +438,27 @@ static bool nt_grids_has_custom_ui(_NT_algorithm *self_base)
 static void nt_grids_setup_ui(_NT_algorithm *self_base, _NT_float3 &pots)
 {
   NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base);
-  bool is_drum_mode = (self->v[kParamMode] == 1);
-
-  for (int i = 0; i < 3; ++i)
+  if (self->m_current_mode_strategy)
   {
-    ParameterIndex primary_param_idx;
-    float primary_scale;
-    if (is_drum_mode)
-    {
-      // Initial pot positions in Drum mode reflect Density 1, 2, 3
-      primary_param_idx = (ParameterIndex)(kParamDrumDensity1 + i); // L=D1, C=D2, R=D3
-      primary_scale = 255.0f;
-    }
-    else
-    { // Euclidean Mode - Initial state is Fill 1-3 (or Length 1-3 if m_euclidean_controls_length is true)
-      if (self->m_euclidean_controls_length)
-      {
-        primary_param_idx = (ParameterIndex)(kParamEuclideanLength1 + i);
-        primary_scale = 32.0f;
-      }
-      else
-      {
-        primary_param_idx = (ParameterIndex)(kParamEuclideanFill1 + i);
-        primary_scale = 255.0f;
-      }
-    }
-
-    // Set the physical pot position based on the primary parameter's current value
-    pots[i] = (primary_scale > 0) ? ((float)self->v[primary_param_idx] / primary_scale) : 0.0f;
-
-    // Sync the pot object with the physical value (resets takeover)
-    self->m_pots[i].syncPhysicalValue(pots[i]);
+    self->m_current_mode_strategy->setupTakeoverPots(self, pots); // Original call, now restored
+    // For debugging: if strategy exists, try a safe platform adapter call
+    // This is a bit artificial as setupUi's role is pots, but it tests the strategy pointer and adapter.
+    // self->m_platform_adapter.drawText(1, 1, "S", 15, kNT_textLeft, kNT_textSmall); // Example debug draw
   }
+  // else
+  // {
+  // If strategy is NULL, set pots to a different default to indicate this path was taken
+  // pots[0] = 0.9f; // REMOVE
+  // }
+
+  // Fallback default pot values if the above logic doesn't cover all pots or if strategy is null.
+  // Ensure all pots are initialized to prevent uninitialized reads by the firmware.
+  // For any pots not explicitly set by the strategy, set them to a default (e.g., 0.0f).
+  // This loop can be removed if the strategy guarantees to set all pots[0-2].
+  // For now, keeping it as a safeguard is reasonable if strategies might not set all.
+  // pots[0] = 0.0f; // REMOVE
+  // pots[1] = 0.0f; // REMOVE
+  // pots[2] = 0.0f; // REMOVE
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -420,350 +468,77 @@ static void nt_grids_setup_ui(_NT_algorithm *self_base, _NT_float3 &pots)
 static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
 {
   NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base);
-  uint32_t alg_idx = NT_algorithmIndex(self_base);
-  uint32_t param_offset = NT_parameterOffset();
 
-  const float MAX_PARAM_VAL_PERCENT_255 = 255.0f;
-  const float MAX_PARAM_VAL_PERCENT_32 = 32.0f; // For Length
-
-  // --- Mode Toggle on Right Encoder Button Click (Press and Release) ---
+  // --- Mode Toggle on Right Encoder Button Click (Press and Release) --- (NOW RE-ENABLING)
   if ((data.buttons & kNT_encoderButtonR) && !(data.lastButtons & kNT_encoderButtonR))
   {
+    // The parameterChanged callback will handle strategy deactivation/activation and calling onModeActivated.
+    // It will also call update_grids_from_params.
+    // The UI will be redrawn due to parameter change, and setupUi will be called for the new mode.
+
     int32_t current_mode_val = self->v[kParamMode];
     int32_t new_mode_val = 1 - current_mode_val; // Toggle 0 (Euclidean) / 1 (Drums)
-    NT_setParameterFromUi(alg_idx, kParamMode + param_offset, new_mode_val);
 
-    self->m_last_mode = new_mode_val;
-    self->m_euclidean_controls_length = false; // Reset Euclidean state on mode change
+    // Set parameter via platform adapter
+    uint32_t alg_idx = self->m_platform_adapter.getAlgorithmIndex(self_base); // Use self_base for platform adapter
+    uint32_t param_offset = self->m_platform_adapter.getParameterOffset();
+    self->m_platform_adapter.setParameterFromUi(alg_idx, kParamMode + param_offset, new_mode_val);
+    // nt_grids_parameter_changed will be called by the system, which will switch strategies.
+    return; // UI will be recalled due to parameter change, no further processing this call.
+  }
 
-    // Prepare pots for takeover based on the NEW mode's primary parameters
-    bool new_mode_is_drum = (new_mode_val == 1);
-    for (int i = 0; i < 3; ++i)
+  // Delegate other UI interactions to the current strategy
+  if (self->m_current_mode_strategy)
+  {
+    // Pots L, C, R processing (NOW RE-ENABLING)
+    self->m_current_mode_strategy->processPotsUI(self, data);
+
+    // Encoder L and R processing (NOW RE-ENABLING)
+    if (data.encoders[0] != 0)
     {
-      ParameterIndex primary_param_in_new_mode;
-      if (new_mode_is_drum)
-      {
-        primary_param_in_new_mode = (ParameterIndex)(kParamDrumDensity1 + i); // D1, D2, D3
-      }
-      else
-      {                                                                         // New mode is Euclidean
-        primary_param_in_new_mode = (ParameterIndex)(kParamEuclideanFill1 + i); // Fill 1, 2, 3
-      }
-      self->m_pots[i].resetTakeoverForModeSwitch(self->v[primary_param_in_new_mode]);
+      self->m_current_mode_strategy->handleEncoderInput(self, data, 0); // Encoder L
     }
-    return; // UI will be recalled
-  }
-
-  // --- Euclidean Length/Fill Toggle on Pot R Button Click (Press and Release) ---
-  bool current_mode_is_drum = (self->v[kParamMode] == 1);
-  if (!current_mode_is_drum && (data.buttons & kNT_potButtonR) && !(data.lastButtons & kNT_potButtonR))
-  {
-    self->m_euclidean_controls_length = !self->m_euclidean_controls_length;
-    // Activate takeover for all pots based on the new state
-    for (int i = 0; i < 3; ++i)
+    if (data.encoders[1] != 0)
     {
-      ParameterIndex param_now_controlled;
-      if (self->m_euclidean_controls_length)
-      {
-        param_now_controlled = (ParameterIndex)(kParamEuclideanLength1 + i);
-      }
-      else
-      {
-        param_now_controlled = (ParameterIndex)(kParamEuclideanFill1 + i);
-      }
-      self->m_pots[i].resetTakeoverForModeSwitch(self->v[param_now_controlled]);
+      self->m_current_mode_strategy->handleEncoderInput(self, data, 1); // Encoder R
     }
-    // Don't return here, let pot update run to configure correctly
-  }
-
-  // --- Pots (L, C, R) Configuration & Update ---
-  for (int i = 0; i < 3; ++i) // Process Pot L (0), C (1), R (2)
-  {
-    ParameterIndex primary_param_idx;
-    ParameterIndex alternate_param_idx = kParamMode; // Default (invalid)
-    bool has_alternate = false;
-    float primary_scale = MAX_PARAM_VAL_PERCENT_255;
-    float alternate_scale = MAX_PARAM_VAL_PERCENT_255;
-
-    if (current_mode_is_drum)
-    {
-      primary_param_idx = (ParameterIndex)(kParamDrumDensity1 + i); // L=D1, C=D2, R=D3
-      if (i == 1)
-      {                                         // Pot C (i=1)
-        primary_param_idx = kParamDrumDensity2; // Pot C controls Density 2
-        alternate_param_idx = kParamMode;       // Invalid/unused
-        has_alternate = false;
-      }
-      else if (i == 2) // Pot R (i=2)
-      {
-        primary_param_idx = kParamDrumDensity3;  // Pot R controls Density 3
-        alternate_param_idx = kParamChaosAmount; // Pot R button controls Chaos Amount
-        has_alternate = true;
-      }
-      else // Pot L (i=0)
-      {
-        primary_param_idx = (ParameterIndex)(kParamDrumDensity1 + i); // L=D1, R=D3
-        alternate_param_idx = kParamMode;                             // Invalid/unused
-        has_alternate = false;
-      }
-    }
-    else
-    { // Euclidean Mode
-      // The primary/alternate roles depend on the global toggle state.
-      // The TakeoverPot update logic doesn't need to know about the toggle trigger (Pot R press),
-      // only which param is currently primary and which is alternate for takeover purposes
-      // triggered by resetTakeoverForNewPrimary.
-      if (self->m_euclidean_controls_length)
-      { // Currently controlling Length
-        primary_param_idx = (ParameterIndex)(kParamEuclideanLength1 + i);
-        primary_scale = MAX_PARAM_VAL_PERCENT_32;
-        alternate_param_idx = (ParameterIndex)(kParamEuclideanFill1 + i); // The 'other' param
-        alternate_scale = MAX_PARAM_VAL_PERCENT_255;
-      }
-      else
-      { // Currently controlling Fill
-        primary_param_idx = (ParameterIndex)(kParamEuclideanFill1 + i);
-        primary_scale = MAX_PARAM_VAL_PERCENT_255;
-        alternate_param_idx = (ParameterIndex)(kParamEuclideanLength1 + i); // The 'other' param
-        alternate_scale = MAX_PARAM_VAL_PERCENT_32;
-      }
-      has_alternate = false; // The TakeoverPot alternate mechanism (button hold) is not used here.
-    }
-
-    // Configure the pot with its current role(s) based on mode and Euclidean state
-    self->m_pots[i].configure(primary_param_idx, alternate_param_idx, has_alternate, primary_scale, alternate_scale);
-    // Update the pot (handles button presses for Drum/PotC->Chaos, pot movement, takeover)
-    // Note: Euclidean toggle logic is handled above, update() just needs correct config
-    self->m_pots[i].update(data);
-  }
-
-  // --- Encoder Handling ---
-  // Encoder L controls Map X (Drum)
-  if (data.encoders[0] != 0)
-  {
-    if (current_mode_is_drum)
-    { // Only active in Drum mode
-      ParameterIndex param_idx_to_change = kParamDrumMapX;
-      int32_t current_val = self->v[param_idx_to_change];
-      int32_t min_val = s_parameters[param_idx_to_change].min;
-      int32_t max_val = s_parameters[param_idx_to_change].max;
-      int32_t new_val = current_val + data.encoders[0]; // Step is 1
-
-      if (new_val < min_val)
-        new_val = min_val;
-      if (new_val > max_val)
-        new_val = max_val;
-      NT_setParameterFromUi(alg_idx, param_idx_to_change + param_offset, new_val);
-    }
-  }
-
-  // Encoder R controls Map Y (Drum) or Chaos Amount (Euclidean)
-  if (data.encoders[1] != 0)
-  {
-    int32_t current_val, new_val, min_val, max_val;
-    ParameterIndex param_idx_to_change;
-    int step_multiplier = 1; // Default step
-
-    if (current_mode_is_drum)
-    { // Check the mode we determined earlier
-      param_idx_to_change = kParamDrumMapY;
-      // step_multiplier remains 1 for Map Y
-    }
-    else
-    { // Euclidean Mode
-      param_idx_to_change = kParamChaosAmount;
-      step_multiplier = 5; // Faster step for Chaos
-    }
-
-    current_val = self->v[param_idx_to_change];
-    min_val = s_parameters[param_idx_to_change].min;
-    max_val = s_parameters[param_idx_to_change].max;
-    new_val = current_val + data.encoders[1] * step_multiplier;
-
-    if (new_val < min_val)
-      new_val = min_val;
-    if (new_val > max_val)
-      new_val = max_val;
-    NT_setParameterFromUi(alg_idx, param_idx_to_change + param_offset, new_val);
   }
 }
 
 static bool nt_grids_draw(_NT_algorithm *self_base)
 {
-  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base); // Use static_cast
-  bool is_drum_mode = (self->v[kParamMode] == 1);                      // self->v is inherited const int16_t*
-  char buffer[64];                                                     // Buffer for string conversions - Increased size to 64
+  NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base);
+  // char buffer[64]; // Buffer may not be needed if strategy call is commented
 
   // --- Title ---
-  // Display "Grids" in large text, centered at the top.
-  NT_drawText(128, 23, "Grids", 15, kNT_textCentre, kNT_textLarge); // Centered, baseline y=23
-  // Display "by Emilie Gilet" in tiny text, centered, underneath "Grids".
-  NT_drawText(128, 30, "by Emilie Gilet", 15, kNT_textCentre, kNT_textTiny); // Centered, baseline y=30
+  self->m_platform_adapter.drawText(128, 23, "Grids", 15, kNT_textCentre, kNT_textLarge);
+  self->m_platform_adapter.drawText(128, 30, "by Emilie Gillet", 15, kNT_textCentre, kNT_textTiny);
 
-  // --- Parameter Display ---
-  _NT_textSize textSize = kNT_textNormal; // Use normal text for parameters
-  int current_y = 42;                     // Start parameter display below the title/subtitle
-  const int line_spacing = 11;            // Adjusted line spacing for normal text
+  // --- Parameter Display --- Delegate to strategy (NOW RE-ENABLING)
+  _NT_textSize textSize = kNT_textNormal;
+  int current_y = 42;
+  const int line_spacing = 11;
+  char buffer[64]; // Buffer is needed by strategy draw functions
 
-  if (is_drum_mode)
+  if (self->m_current_mode_strategy)
   {
-    // Row 1: Densities
-    NT_drawText(10, current_y, "D1:", 15, kNT_textLeft, textSize); // D1 Label (Leftmost)
-    NT_intToString(buffer, self->v[kParamDrumDensity1]);
-    NT_drawText(35, current_y, buffer, 15, kNT_textLeft, textSize); // D1 Value
-
-    NT_drawText(95, current_y, "D2:", 15, kNT_textLeft, textSize); // D2 Label (Near Center)
-    NT_intToString(buffer, self->v[kParamDrumDensity2]);
-    NT_drawText(120, current_y, buffer, 15, kNT_textLeft, textSize); // D2 Value
-
-    NT_drawText(175, current_y, "D3:", 15, kNT_textLeft, textSize); // D3 Label (Right Side)
-    NT_intToString(buffer, self->v[kParamDrumDensity3]);
-    NT_drawText(200, current_y, buffer, 15, kNT_textLeft, textSize); // D3 Value
-    current_y += line_spacing;
-
-    // Row 2: Map X, Map Y (Centered), Chaos (Right Side)
-    NT_drawText(70, current_y, "X:", 15, kNT_textLeft, textSize); // X Label (Centered)
-    NT_intToString(buffer, self->v[kParamDrumMapX]);
-    NT_drawText(95, current_y, buffer, 15, kNT_textLeft, textSize); // X Value
-
-    NT_drawText(135, current_y, "Y:", 15, kNT_textLeft, textSize); // Y Label (Centered)
-    NT_intToString(buffer, self->v[kParamDrumMapY]);
-    NT_drawText(160, current_y, buffer, 15, kNT_textLeft, textSize); // Y Value
-
-    // Chaos Amount (Far Right)
-    NT_drawText(200, current_y, "Chaos:", 15, kNT_textLeft, textSize); // Chaos Label (Far Right)
-    if (self->v[kParamChaosEnable])
-    {
-      NT_intToString(buffer, self->v[kParamChaosAmount]);
-      NT_drawText(255, current_y, buffer, 15, kNT_textRight, textSize); // Chaos Value (Right Justified)
-    }
-    else
-    {
-      NT_drawText(255, current_y, "Off", 15, kNT_textRight, textSize); // Chaos Off (Right Justified)
-    }
-    // current_y += line_spacing; // No more lines needed in this mode
-  }
-  else // Euclidean Mode
-  {
-    const int white = 15;
-    const int gray = 8;
-    _NT_textSize euclidTextSize = kNT_textNormal;
-
-    bool editing_length = self->m_euclidean_controls_length;
-    int length_val_color = editing_length ? white : gray;
-    int fill_val_color = editing_length ? gray : white;
-
-    char num_buffer[5]; // For converting numbers to strings
-
-    // --- Draw L#: LVal:FVal line ---
-    int euclid_y = current_y;              // Y position for the main L/F line
-    int chaos_y = euclid_y + line_spacing; // Y position for Chaos line
-
-    // Approximate center x = 128. Estimate string width or use offsets.
-    // Let's try drawing pieces relative to a starting point. We might need to fine-tune X values.
-    int x_pos = 30;             // Starting X - adjust as needed for centering
-    const int sep_width = 5;    // Space around colons
-    const int val_width = 20;   // Approx width for values
-    const int label_width = 20; // Approx width for labels (L1:, F1:)
-    const int track_gap = 15;   // Space between L#:F# groups
-
-    for (int i = 0; i < 3; ++i)
-    {
-      ParameterIndex length_param = (ParameterIndex)(kParamEuclideanLength1 + i);
-      ParameterIndex fill_param = (ParameterIndex)(kParamEuclideanFill1 + i);
-
-      // Draw L#: (Grey)
-      char label_buffer[4];
-      label_buffer[0] = 'L';
-      label_buffer[1] = '1' + i;
-      label_buffer[2] = ':';
-      label_buffer[3] = '\0';
-      NT_drawText(x_pos, euclid_y, label_buffer, gray, kNT_textLeft, euclidTextSize);
-      x_pos += label_width;
-
-      // Draw Length Value (White/Grey)
-      NT_intToString(num_buffer, self->v[length_param]);
-      NT_drawText(x_pos, euclid_y, num_buffer, length_val_color, kNT_textLeft, euclidTextSize);
-      x_pos += val_width;
-
-      // Draw : (Grey)
-      NT_drawText(x_pos, euclid_y, ":", gray, kNT_textLeft, euclidTextSize);
-      x_pos += sep_width;
-
-      // Draw Fill Value (White/Grey)
-      // Duplicate calculation from PatternGenerator::GetFill
-      int16_t length_param_value = self->v[length_param];
-      int16_t fill_param_value_raw = self->v[fill_param]; // 0-255
-      uint16_t actual_hits_from_lut = 0;
-
-      if (length_param_value > 0 && length_param_value <= 32) // Valid length for LUT
-      {
-        uint8_t density_for_lut = static_cast<uint8_t>(fill_param_value_raw >> 3);
-        if (density_for_lut > 31)
-          density_for_lut = 31;
-
-        uint16_t address = (static_cast<uint16_t>(length_param_value - 1) * 32) + density_for_lut;
-        if (address >= nt_grids_port::LUT_RES_EUCLIDEAN_SIZE)
-        {
-          address = nt_grids_port::LUT_RES_EUCLIDEAN_SIZE - 1; // Clamp address
-        }
-
-        uint32_t pattern_bits = nt_grids_port::lut_res_euclidean[address];
-
-        // Count set bits in pattern_bits (up to length_param_value)
-        for (int bit_idx = 0; bit_idx < length_param_value; ++bit_idx)
-        {
-          if ((pattern_bits >> bit_idx) & 1)
-          {
-            actual_hits_from_lut++;
-          }
-        }
-      }
-      NT_intToString(num_buffer, actual_hits_from_lut);
-      NT_drawText(x_pos, euclid_y, num_buffer, fill_val_color, kNT_textLeft, euclidTextSize);
-      x_pos += val_width;
-
-      // Gap before next track
-      if (i < 2)
-      {
-        x_pos += track_gap;
-      }
-    }
-
-    // --- Draw Chaos line ---
-    // Draw label slightly left of center, right-aligned
-    NT_drawText(126, chaos_y, "Chaos:", 15, kNT_textRight, euclidTextSize);
-    if (self->v[kParamChaosEnable])
-    {
-      NT_intToString(num_buffer, self->v[kParamChaosAmount]);
-      // Draw value slightly right of center, left-aligned
-      NT_drawText(130, chaos_y, num_buffer, 15, kNT_textLeft, euclidTextSize);
-    }
-    else
-    {
-      // Draw "Off" slightly right of center, left-aligned
-      NT_drawText(130, chaos_y, "Off", 15, kNT_textLeft, euclidTextSize);
-    }
+    self->m_current_mode_strategy->drawModeUI(self, current_y, textSize, line_spacing, buffer);
   }
 
-  // --- Status Indicators ---
-  // Display Clock/Reset status briefly near the top right, small
-  _NT_textSize statusTextSize = kNT_textNormal; // Use normal text for status too
+  // --- Status Indicators --- (NOW RE-ENABLING)
+  _NT_textSize statusTextSize = kNT_textNormal;
   if (self->debug_recent_clock_tick)
   {
-    // Position adjusted slightly to avoid large title and moved down
-    NT_drawText(250, 12, "CLK", 15, kNT_textRight, statusTextSize); // y=12
+    self->m_platform_adapter.drawText(250, 12, "CLK", 15, kNT_textRight, statusTextSize);
   }
   if (self->debug_recent_reset)
   {
-    // Position adjusted slightly and moved down
-    NT_drawText(220, 12, "RST", 15, kNT_textRight, statusTextSize); // y=12
+    self->m_platform_adapter.drawText(220, 12, "RST", 15, kNT_textRight, statusTextSize);
   }
-  // Clear these flags after checking
-  self->debug_recent_clock_tick = false;
-  self->debug_recent_reset = false;
+  self->debug_recent_clock_tick = false; // MOVED/UNCOMMENTED: Clear after drawing
+  self->debug_recent_reset = false;      // MOVED/UNCOMMENTED: Clear after drawing
 
-  return true; // Return true to indicate full custom UI (suppress default param line)
+  return true;
 }
 
 // --- Factory Definition (must be after all callback definitions it references) ---

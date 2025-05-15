@@ -55,10 +55,10 @@ namespace nt_grids_port
     {
       if (!s_seeded_)
       {
-        // rng_state_ = 0xFEED; // Old fixed seed
-        rng_state_ = static_cast<uint16_t>(NT_getCpuCycleCount() & 0xFFFF); // Use lower 16 bits of CPU cycle count
-        if (rng_state_ == 0)
-          rng_state_ = 0xACE1; // Ensure seed is not zero, as LFSR can get stuck
+        rng_state_ = 0xACE1; // Use a fixed seed, bypassing NT_getCpuCycleCount() for now
+        // rng_state_ = static_cast<uint16_t>(NT_getCpuCycleCount() & 0xFFFF); // Use lower 16 bits of CPU cycle count
+        // if (rng_state_ == 0)
+        //   rng_state_ = 0xACE1; // Ensure seed is not zero, as LFSR can get stuck
         s_seeded_ = true;
       }
     }

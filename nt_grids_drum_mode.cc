@@ -3,61 +3,61 @@
 #include "nt_grids_parameter_defs.h" // For kParamOff and other parameter definitions
 #include <cstring>
 
-#ifdef TESTING_BUILD
-#include <cstdio> // For snprintf
+// Manual MIN/MAX macros if not available
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
+// DrumModeStrategy constructor - ensure it doesn't configure pots.
+// Default constructor is fine if it does no work related to self_algo_for_init->m_pots.
+// Removed definition here, as it's defaulted in the header.
+// DrumModeStrategy::DrumModeStrategy()
+// {
+//   // Constructor should be empty or only initialize its own members not dependent on NtGridsAlgorithm state.
+// }
 
 // Handle encoder input for Drum mode (Map X and Map Y)
 void DrumModeStrategy::handleEncoderInput(NtGridsAlgorithm *self, const _NT_uiData &data, int encoder_idx)
 {
-  if (!self || !self->m_platform_adapter)
-  {
-#ifdef TESTING_BUILD
-    if (self && self->m_platform_adapter)
-      self->m_platform_adapter->drawText(0, 0, "DrumEnc: Early exit, self or adapter null", 0, kNT_textLeft, kNT_textTiny);
-#endif
-    return;
-  }
+  if (!self)
+    return; // self pointer check is still valid
 
   int encoder_delta = data.encoders[encoder_idx];
-  bool changed_flag = (encoder_delta != 0); // Check if encoder_delta itself is non-zero
+  if (encoder_delta == 0)
+    return;
 
-#ifdef TESTING_BUILD
-  char msg_buf[200];
-  snprintf(msg_buf, sizeof(msg_buf), "DrumEnc Idx:%d Delta:%d Changed:%s", encoder_idx, encoder_delta, changed_flag ? "T" : "F");
-  self->m_platform_adapter->drawText(0, 0, msg_buf, 0, kNT_textLeft, kNT_textTiny);
-#endif
-
-  if (!changed_flag || encoder_delta == 0)
+  ParameterIndex target_param = kParamMode; // Original initialization
+  if (encoder_idx == 0)
+  { // Left Encoder typically controls X
+    target_param = kParamDrumMapX;
+  }
+  else if (encoder_idx == 1)
+  { // Right Encoder typically controls Y
+    target_param = kParamDrumMapY;
+  }
+  else
   {
-#ifdef TESTING_BUILD
-    self->m_platform_adapter->drawText(0, 0, "DrumEnc: Early exit, no change or zero delta", 0, kNT_textLeft, kNT_textTiny);
-#endif
-    return; // No change or no movement for this encoder
+    return; // Should not happen with valid encoder_idx
   }
 
-  ParameterIndex target_param = kParamOff;
-  if (encoder_idx == 0)
-    target_param = kParamDrumMapX;
-  else if (encoder_idx == 1)
-    target_param = kParamDrumMapY;
-  else
-    return; // Invalid encoder index
-
-  const _NT_parameter *param_def = self->m_platform_adapter->getParameterDefinition(target_param);
+  const _NT_parameter *param_def = self->m_platform_adapter.getParameterDefinition(target_param);
   if (!param_def)
     return;
-  int current_val = self->v[target_param];
-  int min_val = param_def->min;
-  int max_val = param_def->max;
-  int new_val = current_val + encoder_delta;
-  if (new_val < min_val)
-    new_val = min_val;
-  if (new_val > max_val)
-    new_val = max_val;
-  uint32_t alg_idx = self->m_platform_adapter->getAlgorithmIndex(self);
-  uint32_t param_offset = self->m_platform_adapter->getParameterOffset();
-  self->m_platform_adapter->setParameterFromUi(alg_idx, target_param + param_offset, new_val);
+
+  int32_t current_val = self->v[target_param];
+  int32_t new_val = current_val + encoder_delta; // Use original encoder_delta
+
+  new_val = MAX(param_def->min, MIN(param_def->max, new_val));
+
+  if (new_val != current_val)
+  {
+    uint32_t alg_idx = self->m_platform_adapter.getAlgorithmIndex(self);
+    uint32_t param_offset = self->m_platform_adapter.getParameterOffset();
+    self->m_platform_adapter.setParameterFromUi(alg_idx, target_param + param_offset, new_val);
+  }
 }
 
 // Process pots for Drum mode (Density1, Density2, Density3, Chaos on R)
@@ -65,11 +65,11 @@ void DrumModeStrategy::processPotsUI(NtGridsAlgorithm *self, const _NT_uiData &d
 {
   for (int i = 0; i < 3; ++i)
   {
-    ParameterIndex primary_param_idx, alternate_param_idx;
-    bool has_alternate;
-    float primary_scale, alternate_scale;
-    determinePotConfig(self, i, primary_param_idx, alternate_param_idx, has_alternate, primary_scale, alternate_scale);
-    self->m_pots[i].configure(primary_param_idx, alternate_param_idx, has_alternate, primary_scale, alternate_scale);
+    // ParameterIndex primary_param_idx, alternate_param_idx;
+    // bool has_alternate;
+    // float primary_scale, alternate_scale;
+    // determinePotConfig(self, i, primary_param_idx, alternate_param_idx, has_alternate, primary_scale, alternate_scale);
+    // self->m_pots[i].configure(primary_param_idx, alternate_param_idx, has_alternate, primary_scale, alternate_scale); // Configure is done in onModeActivated
     self->m_pots[i].update(data);
   }
 }
@@ -99,50 +99,67 @@ void DrumModeStrategy::setupTakeoverPots(NtGridsAlgorithm *self, _NT_float3 &pot
     }
     primary_scale = 255.0f;
     pots[i] = (primary_scale > 0) ? ((float)self->v[primary_param_idx] / primary_scale) : 0.0f;
-    self->m_pots[i].syncPhysicalValue(pots[i]);
   }
 }
 
 // Draw Drum mode UI (densities, Map X/Y, Chaos)
 void DrumModeStrategy::drawModeUI(NtGridsAlgorithm *self, int y_start, _NT_textSize text_size, int line_spacing, char *buffer)
 {
-  if (!self || !self->m_platform_adapter)
-    return;
+  if (!self)
+    return; // self pointer check is still valid
+
   int current_y = y_start;
   // Densities
-  self->m_platform_adapter->drawText(10, current_y, "D1:", 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->intToString(buffer, self->v[kParamDrumDensity1]);
-  self->m_platform_adapter->drawText(35, current_y, buffer, 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->drawText(95, current_y, "D2:", 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->intToString(buffer, self->v[kParamDrumDensity2]);
-  self->m_platform_adapter->drawText(120, current_y, buffer, 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->drawText(175, current_y, "D3:", 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->intToString(buffer, self->v[kParamDrumDensity3]);
-  self->m_platform_adapter->drawText(200, current_y, buffer, 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.drawText(10, current_y, "D1:", 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.intToString(buffer, self->v[kParamDrumDensity1]);
+  self->m_platform_adapter.drawText(35, current_y, buffer, 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.drawText(95, current_y, "D2:", 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.intToString(buffer, self->v[kParamDrumDensity2]);
+  self->m_platform_adapter.drawText(120, current_y, buffer, 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.drawText(175, current_y, "D3:", 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.intToString(buffer, self->v[kParamDrumDensity3]);
+  self->m_platform_adapter.drawText(200, current_y, buffer, 15, kNT_textLeft, text_size);
   current_y += line_spacing;
   // Map X, Map Y, Chaos
-  self->m_platform_adapter->drawText(70, current_y, "X:", 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->intToString(buffer, self->v[kParamDrumMapX]);
-  self->m_platform_adapter->drawText(95, current_y, buffer, 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->drawText(135, current_y, "Y:", 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->intToString(buffer, self->v[kParamDrumMapY]);
-  self->m_platform_adapter->drawText(160, current_y, buffer, 15, kNT_textLeft, text_size);
-  self->m_platform_adapter->drawText(200, current_y, "Chaos:", 15, kNT_textLeft, text_size);
-  if (self->v[kParamChaosEnable])
+  self->m_platform_adapter.drawText(70, current_y, "X:", 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.intToString(buffer, self->v[kParamDrumMapX]);
+  self->m_platform_adapter.drawText(95, current_y, buffer, 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.drawText(135, current_y, "Y:", 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.intToString(buffer, self->v[kParamDrumMapY]);
+  self->m_platform_adapter.drawText(160, current_y, buffer, 15, kNT_textLeft, text_size);
+  self->m_platform_adapter.drawText(200, current_y, "Chaos:", 15, kNT_textLeft, text_size);
+
+  bool chaos_enabled = self->v[kParamChaosEnable];
+  if (chaos_enabled)
   {
-    self->m_platform_adapter->intToString(buffer, self->v[kParamChaosAmount]);
-    self->m_platform_adapter->drawText(255, current_y, buffer, 15, kNT_textRight, text_size);
+    self->m_platform_adapter.intToString(buffer, self->v[kParamChaosAmount]);
+    self->m_platform_adapter.drawText(255, current_y, buffer, 15, kNT_textRight, text_size);
   }
   else
   {
-    self->m_platform_adapter->drawText(255, current_y, "Off", 15, kNT_textRight, text_size);
+    self->m_platform_adapter.drawText(255, current_y, "Off", 15, kNT_textRight, text_size);
   }
 }
 
 // Called when Drum mode is activated
-void DrumModeStrategy::onModeActivated(NtGridsAlgorithm * /*self*/)
+void DrumModeStrategy::onModeActivated(NtGridsAlgorithm *self)
 {
   // No special state to reset for Drum mode
+  if (!self)
+    return;
+
+  // Configure pots when mode is activated
+  for (int i = 0; i < 3; ++i)
+  {
+    ParameterIndex primary_idx;
+    ParameterIndex alternate_idx;
+    bool has_alternate;
+    float primary_scale;
+    float alternate_scale;
+    // 'self' is not used by DrumModeStrategy::determinePotConfig, but pass for consistency if it changes.
+    this->determinePotConfig(self, i, primary_idx, alternate_idx, has_alternate, primary_scale, alternate_scale);
+    self->m_pots[i].configure(primary_idx, alternate_idx, has_alternate, primary_scale, alternate_scale);
+  }
 }
 
 // Called when Drum mode is deactivated

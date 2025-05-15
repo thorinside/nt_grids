@@ -4,14 +4,10 @@
 // Shared parameter index definitions
 enum ParameterIndex
 {
-  kParamOff, // Represents an invalid or unassigned parameter
   // Mode & Global
   kParamMode,
   kParamChaosEnable,
   kParamChaosAmount,
-  // CV Inputs
-  kParamClockInput,
-  kParamResetInput,
   // Drum Mode Specific
   kParamDrumMapX,
   kParamDrumMapY,
@@ -21,12 +17,18 @@ enum ParameterIndex
   // Euclidean Mode Specific
   kParamEuclideanControlsLength,
   kParamEuclideanLength1,
-  kParamEuclideanLength2,
-  kParamEuclideanLength3,
   kParamEuclideanFill1,
+  kParamEuclideanShift1,
+  kParamEuclideanLength2,
   kParamEuclideanFill2,
+  kParamEuclideanShift2,
+  kParamEuclideanLength3,
   kParamEuclideanFill3,
-  // Outputs
+  kParamEuclideanShift3,
+  // CV Inputs / Routing
+  kParamClockInput,
+  kParamResetInput,
+  // Outputs / Routing
   kParamOutputTrig1,
   kParamOutputTrig1Mode,
   kParamOutputTrig2,

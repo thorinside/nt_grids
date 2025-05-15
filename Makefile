@@ -10,7 +10,8 @@ CFLAGS = -std=c++11 -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb \
 INCLUDES = -I. -I./distingNT_API/include
 
 # Source files
-SOURCES = nt_grids.cc nt_grids_pattern_generator.cc nt_grids_resources.cc nt_grids_utils.cc nt_grids_takeover_pot.cc
+SOURCES = nt_grids.cc nt_grids_pattern_generator.cc nt_grids_resources.cc nt_grids_utils.cc nt_grids_takeover_pot.cc \
+          disting_nt_platform_adapter.cc plugin_allocator.cc nt_grids_drum_mode.cc nt_grids_euclidean_mode.cc
 
 # Object files (derived from sources)
 OBJECTS = $(patsubst %.cc, build/%.o, $(SOURCES))
@@ -43,4 +44,10 @@ clean:
 	rm -rf $(BUILD_DIR) $(OUTPUT_DIR)
 	@echo "Cleaned build and output directories"
 
-.PHONY: all clean 
+# Target to check for undefined symbols in the plugin
+check: all
+	@echo "Checking for undefined symbols in $(OUTPUT_PLUGIN)..."
+	@arm-none-eabi-nm $(OUTPUT_PLUGIN) | grep ' U ' || echo "No undefined symbols found (or grep failed to find any)."
+	@echo "Note: If symbols are listed above, they are undefined in the plugin and expected to be provided by the host."
+
+.PHONY: all clean check 

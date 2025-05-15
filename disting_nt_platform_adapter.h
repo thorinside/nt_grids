@@ -1,12 +1,19 @@
-#ifndef DISTING_NT_PLATFORM_ADAPTER_H
-#define DISTING_NT_PLATFORM_ADAPTER_H
+#pragma once
 
-#include "distingnt/api.h"       // Explicitly include for NT types like _NT_textAlign
-#include "nt_platform_adapter.h" // For INtPlatformAdapter interface
+#include "distingnt/api.h"           // Explicitly include for NT types
+#include "nt_platform_adapter.h"     // For INtPlatformAdapter interface
+#include "nt_grids_parameter_defs.h" // For ParameterIndex
+
+// Forward declaration
+struct _NT_algorithm;
+
+// Forward declaration to resolve circular dependency
+class NtGridsAlgorithm;
 
 class DistingNtPlatformAdapter : public INtPlatformAdapter
 {
 public:
+  DistingNtPlatformAdapter(NtGridsAlgorithm *alg);
   ~DistingNtPlatformAdapter() override = default;
 
   // Parameter setting
@@ -24,6 +31,7 @@ public:
   // Parameter Definitions
   const _NT_parameter *getParameterDefinition(ParameterIndex p_idx) override;
   uint16_t getPotButtonMask(int pot_index) override;
-};
 
-#endif // DISTING_NT_PLATFORM_ADAPTER_H
+private:
+  NtGridsAlgorithm *m_algorithm;
+};

@@ -2,6 +2,19 @@
 #include "distingnt/api.h" // For actual NT_ calls and NT_globals
 #include "nt_grids.h"      // For extern s_parameters (and ParameterIndex via nt_grids_parameter_defs.h indirectly)
 
+// Constructor
+DistingNtPlatformAdapter::DistingNtPlatformAdapter(NtGridsAlgorithm *alg)
+//: m_algorithm(alg) // Comment out member initialization if any complex logic depends on it here
+{
+  // Comment out entire body for testing
+  // if (alg) { // Basic null check
+  //     // Any other simple, safe initializations can go here if needed
+  //     // For example, if you had simple members that don't depend on alg->v or other complex state.
+  // }
+  // m_algorithm is the main thing to initialize. If alg is nullptr, it implies an issue elsewhere.
+  m_algorithm = alg; // Keep this minimal assignment for now, but be wary if alg itself is problematic
+}
+
 // Parameter setting
 void DistingNtPlatformAdapter::setParameterFromUi(uint32_t alg_idx, uint32_t param_idx_with_offset, int32_t value)
 {
@@ -13,6 +26,7 @@ void DistingNtPlatformAdapter::drawText(int16_t x, int16_t y, const char *str, u
 {
   NT_drawText(x, y, str, c, align, size);
 }
+
 void DistingNtPlatformAdapter::intToString(char *buffer, int32_t value)
 {
   NT_intToString(buffer, value);
@@ -23,24 +37,28 @@ uint32_t DistingNtPlatformAdapter::getAlgorithmIndex(_NT_algorithm *self_base)
 {
   return NT_algorithmIndex(self_base);
 }
+
 uint32_t DistingNtPlatformAdapter::getParameterOffset()
 {
   return NT_parameterOffset();
 }
+
 float DistingNtPlatformAdapter::getSampleRate()
 {
   return NT_globals.sampleRate;
 }
 
 // Parameter Definitions
-const _NT_parameter *DistingNtPlatformAdapter::getParameterDefinition(ParameterIndex p_idx)
+const _NT_parameter *DistingNtPlatformAdapter::getParameterDefinition(ParameterIndex param_idx)
 {
-  // kNumParameters is from nt_grids_parameter_defs.h, included via nt_grids.h or nt_platform_adapter.h
-  if (p_idx >= 0 && p_idx < kNumParameters)
+  if (param_idx >= 0 && param_idx < kNumParameters)
   {
-    return &s_parameters[p_idx];
+    if (m_algorithm && m_algorithm->parameters)
+    {
+      return &m_algorithm->parameters[param_idx];
+    }
   }
-  return nullptr; // Should ideally not happen if p_idx is always valid
+  return nullptr;
 }
 
 uint16_t DistingNtPlatformAdapter::getPotButtonMask(int pot_index)
@@ -51,5 +69,5 @@ uint16_t DistingNtPlatformAdapter::getPotButtonMask(int pot_index)
     return kNT_potButtonC;
   if (pot_index == 2)
     return kNT_potButtonR;
-  return 0; // Should not happen if pot_index is always 0, 1, or 2
+  return 0;
 }

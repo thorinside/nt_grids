@@ -2,7 +2,11 @@
 #define NT_GRIDS_H
 
 #include "distingnt/api.h"
-#include "nt_grids_takeover_pot.h" // Need TakeoverPot definition for the member array
+#include "nt_grids_takeover_pot.h"
+#include "disting_nt_platform_adapter.h" // Include the new platform adapter
+#include "nt_grids_drum_mode.h"          // Include Drum mode strategy
+#include "nt_grids_euclidean_mode.h"     // Include Euclidean mode strategy
+// IModeStrategy is included by the concrete strategy headers if they are used
 
 // --- NtGridsAlgorithm Struct Definition ---
 // Moved here from nt_grids.cc so it can be included by other .cc files
@@ -26,15 +30,20 @@ struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
   // Track the last known mode to detect changes
   int16_t m_last_mode; // Use int16_t to match parameter value type
 
-  bool m_euclidean_controls_length; // True if pots control Length 1-3 in Euclidean mode
+  // Platform Adapter and Mode Strategies
+  DistingNtPlatformAdapter m_platform_adapter; // Changed from pointer to direct member
+  DrumModeStrategy m_drum_mode_strategy;
+  EuclideanModeStrategy m_euclidean_mode_strategy;
+  IModeStrategy *m_current_mode_strategy;
 
-  // Add a default constructor maybe? Or rely on placement new initialization?
-  // Relying on placement new for now.
+  // Constructor declaration, if needed for strategies that take 'this'
+  NtGridsAlgorithm();
 
-  void resetTakeoverForModeSwitch(int16_t new_primary_param_value); // For Drum/Euclid mode switch
-  void syncPhysicalValue(float physical_pot_value);                 // For setupUi
-  void resetTakeoverForNewPrimary(int16_t new_primary_param_value); // For Euclid Length/Fill toggle
-  void update(const _NT_uiData &data);                              // The main update logic
+  // Removed methods that are now part of TakeoverPot or will be strategy-dependent
+  // void resetTakeoverForModeSwitch(int16_t new_primary_param_value);
+  // void syncPhysicalValue(float physical_pot_value);
+  // void resetTakeoverForNewPrimary(int16_t new_primary_param_value);
+  // void update(const _NT_uiData &data);
 };
 
 // --- Extern declaration for s_parameters ---
