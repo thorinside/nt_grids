@@ -14,9 +14,9 @@ class DistingNtPlatformAdapter; // Forward declare
 // Enum for TakeoverPot state
 enum class TakeoverState
 {
-  INACTIVE,        // Pot is not yet in control, value hasn't crossed stored param value
-  ACTIVE_PRIMARY,  // Pot is controlling the primary parameter
-  ACTIVE_ALTERNATE // Pot is controlling the alternate parameter
+  HOLDING_WAIT_FOR_MOVE, // Parameter selected, value held, waiting for first pot movement
+  RELATIVELY_ADJUSTING,  // Pot moved, parameter changing relatively, seeking to meet physical pot value
+  DIRECT_CONTROL         // Parameter value has met physical pot, direct control engaged
 };
 
 class TakeoverPot
@@ -46,18 +46,13 @@ private:
   float m_primary_scale;
   float m_alternate_scale;
 
-  bool m_is_controlling_alternate;    // True if the alternate parameter is currently being controlled
-  bool m_takeover_active_primary;     // True if primary parameter takeover is active
-  bool m_takeover_active_alternate;   // True if alternate parameter takeover is active
-  int16_t m_primary_takeover_value;   // Value the primary parameter had when takeover started
-  int16_t m_alternate_takeover_value; // Value the alternate parameter had when takeover started
-  float m_prev_physical_value;        // Last known physical pot position (0.0-1.0)
-  float m_physical_value;             // Current physical position (0.0 to 1.0)
+  bool m_is_controlling_alternate; // True if the alternate parameter is currently being targeted
+  float m_prev_physical_value;     // Last known physical pot position (0.0-1.0)
 
-  // Added missing members
+  // State for takeover logic
   TakeoverState m_state;
-  int16_t m_cached_primary_value;
-  int16_t m_cached_alternate_value;
+  int16_t m_held_parameter_value;     // Stores the parameter's value when HOLDING_WAIT_FOR_MOVE begins
+  float m_physical_pot_at_hold_start; // Physical pot position (0.0-1.0) when HOLDING_WAIT_FOR_MOVE began
 };
 
 #endif // NT_GRIDS_TAKEOVER_POT_H
