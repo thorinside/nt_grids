@@ -22,7 +22,6 @@ The original Grids firmware is licensed under the GPLv3 license, however, as thi
 *   **Accent Output:** Provides an additional accent trigger output common to many Grids patterns.
 *   **Clock Input:** External clock synchronization.
 *   **Reset Input:** Resets the sequencer pattern to the beginning.
-*   **Swing:** Apply swing timing to the generated patterns (On/Off).
 *   **Chaos:** Introduce controlled randomness to patterns (On/Off, with Amount control).
 *   **Custom Disting NT UI:** Optimized controls for hands-on tweaking using the Disting NT's pots, encoders, and buttons.
 
@@ -92,13 +91,13 @@ The custom UI provides quick access to the most commonly used parameters for eac
 
 ### Euclidean Mode UI
 
-*   **Pot L:** Controls `Fill 1`
-*   **Pot C:** Controls `Fill 2`
-*   **Pot R:** Controls `Fill 3`
-*   **Encoder L:** Controls `Chaos Amount` (steps of 5)
-*   **Encoder R:** Controls `Length 1`
+*   **Pots (L, C, R):** Control `Length 1-3` or `Fill 1-3` for their respective channels (Pot L for Ch1, Pot C for Ch2, Pot R for Ch3).
+*   **Pot R Button Press:** Toggles whether the pots control Lengths or Fills.
+*   **Encoder L:** No function.
+*   **Encoder R:** Controls `Chaos Amount`.
 *   **Screen:**
-    *   Row 1: `L1: [len]:[fill]   L2: [len]:[fill]   L3: [len]:[fill]` (centered)
+    *   Row 1: `L1:[len]:[fill]   L2:[len]:[fill]   L3:[len]:[fill]` (centered). The parameter type currently being controlled by the pots (Length or Fill) is highlighted.
+    *   Row 2: `Chaos: [val/Off]` (Displayedруппаosition matches Drum Mode).
 
 ### Common UI Elements
 

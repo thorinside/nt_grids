@@ -337,19 +337,25 @@ namespace nt_grids_port
       for (uint8_t i = 0; i < kNumParts; ++i)
       {
         uint8_t length = current_euclidean_length_[i];
-        // uint8_t fill = fill_[i]; // fill_[i] (calculated active steps) is not directly used by the LUT approach;
-        // the LUT uses scaled density directly.
 
         if (length == 0)
           continue;
 
-        uint8_t density_param_val = settings_[OUTPUT_MODE_EUCLIDEAN].density[i]; // 0-255 from UI
-        uint8_t density_for_lut = density_param_val >> 3;                        // Scale to 0-31 for LUT index
-        if (density_for_lut > 31)
-          density_for_lut = 31; // Clamp to max LUT index for density
+        uint8_t fill_param_value = settings_[OUTPUT_MODE_EUCLIDEAN].density[i]; // 0-16 from UI parameter
+
+        // Revised logic for density_for_lut:
+        // It should represent the desired number of fills/events.
+        // Clamp to current length and max LUT density index (31).
+        uint8_t desired_fills = fill_param_value;
+        if (desired_fills > length)
+          desired_fills = length;
+        if (desired_fills > 31)
+          desired_fills = 31; // Assuming LUT density part is 0-31
+
+        uint8_t density_for_lut = desired_fills;
 
         uint16_t address = (length - 1) * 32 + density_for_lut;
-        if (address >= nt_grids_port::LUT_RES_EUCLIDEAN_SIZE) // Safety check for LUT bounds
+        if (address >= nt_grids_port::LUT_RES_EUCLIDEAN_SIZE)
         {
           address = 0; // Should not happen with valid length/density
         }
