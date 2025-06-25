@@ -32,7 +32,7 @@
 // namespace nt_grids_port { namespace grids { class PatternGenerator; } }
 
 // Define a unique GUID for this algorithm
-#define NT_GRIDS_GUID NT_MULTICHAR('N', 'T', 'G', 'R')
+#define NT_GRIDS_GUID NT_MULTICHAR('T', 'h', 'G', 'R')
 
 // No anonymous namespace, all file-scope symbols below will be static or const static.
 
