@@ -3,14 +3,14 @@
 # Compiler and flags (Adjust path if necessary)
 CXX = arm-none-eabi-g++
 CFLAGS = -std=c++11 -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb \
-         -Os -Wall
+         -Os -Wall -fno-rtti -fno-exceptions
 
 # Include paths
 INCLUDES = -I. -I./distingNT_API/include
 
 # Source files
 SOURCES = nt_grids.cc nt_grids_pattern_generator.cc nt_grids_resources.cc nt_grids_utils.cc nt_grids_takeover_pot.cc \
-          disting_nt_platform_adapter.cc nt_grids_drum_mode.cc nt_grids_euclidean_mode.cc
+          disting_nt_platform_adapter.cc nt_grids_drum_mode.cc nt_grids_euclidean_mode.cc plugin_allocator.cc
 
 # Object files (derived from sources)
 OBJECTS = $(patsubst %.cc, build/%.o, $(SOURCES))
