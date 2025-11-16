@@ -1,7 +1,7 @@
 # Makefile for Disting NT Grids Plugin
 
 # Version from git (tag or commit hash)
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "v1.0.0-dev")
+VERSION := $(shell git describe --tags --always 2>/dev/null || echo "v1.0.0-dev")
 
 # Compiler and flags (Adjust path if necessary)
 CXX = arm-none-eabi-g++
