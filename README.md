@@ -39,7 +39,7 @@ Generates patterns by interpolating through a 2D map of pre-analyzed drum patter
 
 Generates classic Euclidean rhythms for each of the three main trigger outputs independently.
 
-*   **Length 1 / Length 2 / Length 3:** Sets the total number of steps in the sequence for each output (1-32).
+*   **Length 1 / Length 2 / Length 3:** Sets the total number of steps in the sequence for each output (1-16).
 *   **Fill 1 / Fill 2 / Fill 3:** Sets the number of triggers distributed as evenly as possible within the sequence length for each output (0-Length).
 *   **Chaos Amount:** Controls the amount of random step-skipping/triggering (when Chaos is enabled).
 
@@ -47,14 +47,16 @@ Generates classic Euclidean rhythms for each of the three main trigger outputs i
 
 Inputs are configured via the standard Disting NT parameter pages (`Routing` page).
 
-*   **Clock In:**
-    *   Parameter: `Clock In`
-    *   Type: CV Input Bus (Select Bus 1-28)
+*   **Clock Input:**
+    *   Parameter: `Clock Input`
+    *   Type: CV Input Bus (Select Bus 0-28, 0=Off)
+    *   Default: Bus 1
     *   Function: Advances the internal sequencer based on a 24 PPQN (Pulses Per Quarter Note) clock signal. The internal step resolution is tied to this PPQN rate.
     *   Threshold: > ~0.5V
-*   **Reset In:**
-    *   Parameter: `Reset In`
-    *   Type: CV Input Bus (Select Bus 1-28)
+*   **Reset Input:**
+    *   Parameter: `Reset Input`
+    *   Type: CV Input Bus (Select Bus 0-28, 0=Off)
+    *   Default: Bus 2
     *   Function: Resets the sequence to the first step on a rising edge.
     *   Threshold: > ~0.5V
 
@@ -62,14 +64,15 @@ Inputs are configured via the standard Disting NT parameter pages (`Routing` pag
 
 Outputs are configured via the standard Disting NT parameter pages (`Routing` page).
 
-*   **Trig 1 Out / Trig 2 Out / Trig 3 Out / Accent Out:**
-    *   Parameter: `Trig X Out` / `Accent Out`
-    *   Type: CV Output Bus (Select Bus 1-28)
+*   **Trig 1 Output / Trig 2 Output / Trig 3 Output / Accent Output:**
+    *   Parameter: `Trig X Output` / `Accent Output`
+    *   Type: CV Output Bus (Select Bus 0-28, 0=Off)
+    *   Defaults: Trig 1=Bus 15, Trig 2=Bus 16, Trig 3=Bus 17, Accent=Bus 18
     *   Function: Outputs a trigger/gate signal when an event occurs for that channel.
-    *   Signal: Fixed duration (~5ms), +10V high, 0V low.
-    *   Mode (`Trig X Out Mode` / `Accent Out Mode`):
-        *   `0` (Off/Add): Adds the trigger voltage to any existing signal on the bus.
-        *   `1` (On/Replace): Replaces any existing signal on the bus with the trigger voltage.
+    *   Signal: Fixed duration (~5ms), +5V high, 0V low.
+    *   Mode (`Trig X Output mode` / `Accent Output mode`):
+        *   `0` (Add): Adds the trigger voltage to any existing signal on the bus.
+        *   `1` (Replace): Replaces any existing signal on the bus with the trigger voltage.
 
 ## Custom UI Mappings
 
@@ -97,12 +100,12 @@ The custom UI provides quick access to the most commonly used parameters for eac
 *   **Encoder R:** Controls `Chaos Amount`.
 *   **Screen:**
     *   Row 1: `L1:[len]:[fill]   L2:[len]:[fill]   L3:[len]:[fill]` (centered). The parameter type currently being controlled by the pots (Length or Fill) is highlighted.
-    *   Row 2: `Chaos: [val/Off]` (Displayedруппаosition matches Drum Mode).
+    *   Row 2: `Chaos: [val/Off]` (Displayed position matches Drum Mode).
 
 ### Common UI Elements
 
-*   **Top Bar:** Displays algorithm title ("Grids", "by Emilie Gilet")
-*   **Top Right:** Briefly displays "CLK" on incoming clock ticks and "RST" on reset events.
+*   **Top Center:** Displays algorithm title ("Grids", "by Emilie Gillet")
+*   **Top Right:** Displays plugin version from git tags (e.g., "v1.1.0")
 
 ## Building from Source
 
@@ -128,7 +131,7 @@ The custom UI provides quick access to the most commonly used parameters for eac
 2.  **Compile:**
     ```bash
     make clean
-    make nt_grids.o # Or potentially just 'make' depending on Makefile setup
+    make
     ```
 
 3.  **Output:** The compiled plugin object file should be located at `plugins/nt_grids.o` (verify path based on your `Makefile`).
