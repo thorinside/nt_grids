@@ -49,13 +49,11 @@ Inputs are configured via the standard Disting NT parameter pages (`Routing` pag
 
 *   **Clock Input:**
     *   Parameter: `Clock Input`
-    *   Type: CV Input Bus (Select Off, Input 1-12, Output 1-8)
     *   Default: Input 1
     *   Function: Advances the internal sequencer based on a 24 PPQN (Pulses Per Quarter Note) clock signal. The internal step resolution is tied to this PPQN rate.
     *   Threshold: > ~0.5V
 *   **Reset Input:**
     *   Parameter: `Reset Input`
-    *   Type: CV Input Bus (Select Off, Input 1-12, Output 1-8)
     *   Default: Input 2
     *   Function: Resets the sequence to the first step on a rising edge.
     *   Threshold: > ~0.5V
@@ -66,7 +64,6 @@ Outputs are configured via the standard Disting NT parameter pages (`Routing` pa
 
 *   **Trig 1 Output / Trig 2 Output / Trig 3 Output / Accent Output:**
     *   Parameter: `Trig X Output` / `Accent Output`
-    *   Type: CV Output Bus (Select Off, Input 1-12, Output 1-8)
     *   Defaults: Trig 1=Output 3, Trig 2=Output 4, Trig 3=Output 5, Accent=Output 6
     *   Function: Outputs a trigger/gate signal when an event occurs for that channel.
     *   Signal: Fixed duration (~5ms), +5V high, 0V low.
