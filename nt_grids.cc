@@ -61,12 +61,12 @@ const _NT_parameter s_parameters[] = {
     {.name = "Euclid Length 3", .min = 1, .max = 16, .def = 8, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     {.name = "Euclid Fill 3", .min = 0, .max = 16, .def = 4, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
     {.name = "Euclid Shift 3", .min = 0, .max = 15, .def = 0, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
-    NT_PARAMETER_AUDIO_INPUT("Clock In", 0, 0)
-    NT_PARAMETER_AUDIO_INPUT("Reset In", 0, 0)
-    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Trig 1 Out", 1, 0)
-    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Trig 2 Out", 2, 0)
-    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Trig 3 Out", 3, 0)
-    NT_PARAMETER_AUDIO_OUTPUT_WITH_MODE("Accent Out", 4, 0)
+    NT_PARAMETER_CV_INPUT("Clock Input", 0, 1)
+    NT_PARAMETER_CV_INPUT("Reset Input", 0, 2)
+    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 1 Output", 0, 15)
+    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 2 Output", 0, 16)
+    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 3 Output", 0, 17)
+    NT_PARAMETER_CV_OUTPUT_WITH_MODE("Accent Output", 0, 18)
 };
 // clang-format on
 // Note: kNumParameters enum value must match the size implicitly
@@ -172,9 +172,6 @@ NtGridsAlgorithm::NtGridsAlgorithm()
   {
     trigger_active_steps_remaining[i] = 0;
   }
-  debug_recent_clock_tick = false;
-  debug_recent_reset = false;
-  memset(debug_param_changed_flags, 0, sizeof(debug_param_changed_flags));
   m_last_mode = -1; // Initialize to an invalid mode to ensure first mode set is detected
   m_current_mode_strategy = nullptr;
 
@@ -245,10 +242,6 @@ static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, co
 static void nt_grids_parameter_changed(_NT_algorithm *self_base, int p_idx)
 {
   NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base);
-  // if (p_idx >= 0 && p_idx < kNumParameters)
-  // {
-  //   self->debug_param_changed_flags[p_idx] = true;
-  // }
 
   if (p_idx == kParamMode)
   {
@@ -303,8 +296,7 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
         if (current_sample_clock_cv > cv_threshold && self->prev_clock_cv_val <= cv_threshold)
         {
           PatternGenerator::TickClock(true);
-          self->debug_recent_clock_tick = true; // Set global debug flag
-          tick_this_step = true;                // Local flag for this step's logic
+          tick_this_step = true; // Local flag for this step's logic
         }
         self->prev_clock_cv_val = current_sample_clock_cv;
       }
@@ -332,7 +324,6 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
           {
             self->trigger_active_steps_remaining[i] = 0;
           }
-          self->debug_recent_reset = true;
         }
         self->prev_reset_cv_val = current_sample_reset_cv;
       }
@@ -422,10 +413,6 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
       self->trigger_active_steps_remaining[i]--;
     }
   }
-
-  // Flags are now cleared in draw()
-  // self->debug_recent_clock_tick = false;
-  // self->debug_recent_reset = false;
 }
 
 // --- Custom UI Callback Implementations (all static as per example) ---
@@ -510,6 +497,11 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
   NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base);
   // char buffer[64]; // Buffer may not be needed if strategy call is commented
 
+  // --- Version ---
+#ifdef NT_GRIDS_VERSION
+  self->m_platform_adapter.drawText(250, 12, NT_GRIDS_VERSION, 15, kNT_textRight, kNT_textTiny);
+#endif
+
   // --- Title ---
   self->m_platform_adapter.drawText(128, 23, "Grids", 15, kNT_textCentre, kNT_textLarge);
   self->m_platform_adapter.drawText(128, 30, "by Emilie Gillet", 15, kNT_textCentre, kNT_textTiny);
@@ -524,19 +516,6 @@ static bool nt_grids_draw(_NT_algorithm *self_base)
   {
     self->m_current_mode_strategy->drawModeUI(self, current_y, textSize, line_spacing, buffer);
   }
-
-  // --- Status Indicators --- (NOW RE-ENABLING)
-  _NT_textSize statusTextSize = kNT_textNormal;
-  if (self->debug_recent_clock_tick)
-  {
-    self->m_platform_adapter.drawText(250, 12, "CLK", 15, kNT_textRight, statusTextSize);
-  }
-  if (self->debug_recent_reset)
-  {
-    self->m_platform_adapter.drawText(220, 12, "RST", 15, kNT_textRight, statusTextSize);
-  }
-  self->debug_recent_clock_tick = false; // MOVED/UNCOMMENTED: Clear after drawing
-  self->debug_recent_reset = false;      // MOVED/UNCOMMENTED: Clear after drawing
 
   return true;
 }

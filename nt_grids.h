@@ -20,10 +20,6 @@ struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
 
   int8_t trigger_active_steps_remaining[4]; // Added to track trigger duration over steps
 
-  bool debug_recent_clock_tick;
-  bool debug_recent_reset;
-  bool debug_param_changed_flags[kNumParameters]; // kNumParameters comes from nt_grids_takeover_pot.h
-
   // TakeoverPot objects are now defined via the included header
   TakeoverPot m_pots[3];
 

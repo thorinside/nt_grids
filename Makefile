@@ -1,9 +1,12 @@
 # Makefile for Disting NT Grids Plugin
 
+# Version from git (tag or commit hash)
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "v1.0.0-dev")
+
 # Compiler and flags (Adjust path if necessary)
 CXX = arm-none-eabi-g++
 CFLAGS = -std=c++11 -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb \
-         -Os -Wall -fno-rtti -fno-exceptions
+         -Os -Wall -fno-rtti -fno-exceptions -DNT_GRIDS_VERSION=\"$(VERSION)\"
 
 # Include paths
 INCLUDES = -I. -I./distingNT_API/include
