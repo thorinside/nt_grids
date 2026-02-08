@@ -26,6 +26,10 @@ struct NtGridsAlgorithm : _NT_algorithm // Inherit from _NT_algorithm
   // Track the last known mode to detect changes
   int16_t m_last_mode; // Use int16_t to match parameter value type
 
+  // MIDI note tracking
+  bool midi_note_active[3];      // Note Off tracking per trigger
+  int16_t m_last_midi_channel;   // For clean Note Off on channel change
+
   // Platform Adapter and Mode Strategies
   DistingNtPlatformAdapter m_platform_adapter; // Changed from pointer to direct member
   DrumModeStrategy m_drum_mode_strategy;

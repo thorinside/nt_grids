@@ -39,6 +39,19 @@
 // --- ParameterDefinitions (s_parameters array, etc.) ---
 static const char *kEnumModeStrings[] = {"Euclidean", "Drums", NULL};
 static const char *kEnumBooleanStrings[] = {"Off", "On", NULL};
+static const char *kEnumMidiChannelStrings[] = {
+    "Off", "1", "2", "3", "4", "5", "6", "7", "8",
+    "9", "10", "11", "12", "13", "14", "15", "16", NULL};
+static const char *kEnumMidiDestStrings[] = {
+    "All", "Breakout", "Select Bus", "USB", "Internal", NULL};
+
+static const uint32_t kMidiDestinations[] = {
+    ~0u,                          // All
+    kNT_destinationBreakout,      // Breakout
+    kNT_destinationSelectBus,     // Select Bus
+    kNT_destinationUSB,           // USB
+    kNT_destinationInternal,      // Internal
+};
 
 // Define s_parameters (matches extern declaration in nt_grids.h)
 // clang-format off
@@ -67,11 +80,24 @@ const _NT_parameter s_parameters[] = {
     NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 2 Output", 0, 16)
     NT_PARAMETER_CV_OUTPUT_WITH_MODE("Trig 3 Output", 0, 17)
     NT_PARAMETER_CV_OUTPUT_WITH_MODE("Accent Output", 0, 18)
+    // MIDI Output
+    {.name = "MIDI Channel", .min = 0, .max = 16, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = kEnumMidiChannelStrings},
+    {.name = "MIDI Destination", .min = 0, .max = 4, .def = 0, .unit = kNT_unitEnum, .scaling = 0, .enumStrings = kEnumMidiDestStrings},
+    {.name = "MIDI Note 1", .min = 0, .max = 127, .def = 36, .unit = kNT_unitMIDINote, .scaling = 0, .enumStrings = NULL},
+    {.name = "MIDI Note 2", .min = 0, .max = 127, .def = 38, .unit = kNT_unitMIDINote, .scaling = 0, .enumStrings = NULL},
+    {.name = "MIDI Note 3", .min = 0, .max = 127, .def = 42, .unit = kNT_unitMIDINote, .scaling = 0, .enumStrings = NULL},
+    {.name = "MIDI Velocity", .min = 1, .max = 127, .def = 100, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
+    {.name = "MIDI Accent Vel", .min = 1, .max = 127, .def = 127, .unit = kNT_unitNone, .scaling = 0, .enumStrings = NULL},
 };
 // clang-format on
 // Note: kNumParameters enum value must match the size implicitly
 
 static const uint8_t NUM_TRIGGER_STEPS = 5;
+
+// Forward declarations for MIDI helpers
+static uint32_t get_midi_destination(NtGridsAlgorithm *self);
+static void send_midi_note_off(NtGridsAlgorithm *self, int trig_index, int16_t channel);
+static void send_all_midi_notes_off(NtGridsAlgorithm *self, int16_t channel);
 
 // --- Parameter Pages ---
 static const uint8_t s_page_main[] = {
@@ -94,12 +120,21 @@ static const uint8_t s_page_routing[] = {
     kParamOutputTrig2, kParamOutputTrig2Mode,
     kParamOutputTrig3, kParamOutputTrig3Mode,
     kParamOutputAccent, kParamOutputAccentMode};
+static const uint8_t s_page_midi[] = {
+    kParamMidiChannel,
+    kParamMidiDestination,
+    kParamMidiNote1,
+    kParamMidiNote2,
+    kParamMidiNote3,
+    kParamMidiVelocity,
+    kParamMidiAccentVel};
 
 static const _NT_parameterPage s_pages[] = {
     {.name = "Main", .numParams = ARRAY_SIZE(s_page_main), .params = s_page_main},
     {.name = "Drum Params", .numParams = ARRAY_SIZE(s_page_drum), .params = s_page_drum},
     {.name = "Euclid Params", .numParams = ARRAY_SIZE(s_page_euclidean), .params = s_page_euclidean},
     {.name = "Routing", .numParams = ARRAY_SIZE(s_page_routing), .params = s_page_routing},
+    {.name = "MIDI", .numParams = ARRAY_SIZE(s_page_midi), .params = s_page_midi},
 };
 
 const _NT_parameterPages parameterPages = {
@@ -175,6 +210,13 @@ NtGridsAlgorithm::NtGridsAlgorithm()
   m_last_mode = -1; // Initialize to an invalid mode to ensure first mode set is detected
   m_current_mode_strategy = nullptr;
 
+  // Initialize MIDI state
+  for (int i = 0; i < 3; ++i)
+  {
+    midi_note_active[i] = false;
+  }
+  m_last_midi_channel = 0;
+
   // Initialize TakeoverPots
   for (int i = 0; i < 3; ++i)
   {
@@ -216,8 +258,9 @@ static _NT_algorithm *nt_grids_construct(const _NT_algorithmMemoryPtrs &ptrs, co
 
   // m_platform_adapter is now a direct member, constructed by NtGridsAlgorithm's constructor.
 
-  // Initialize m_last_mode (needs alg->v)
+  // Initialize m_last_mode and m_last_midi_channel (needs alg->v)
   alg->m_last_mode = alg->v[kParamMode];
+  alg->m_last_midi_channel = alg->v[kParamMidiChannel];
 
   // Set the initial mode strategy (needs alg->v)
   if (alg->v[kParamMode] == 1) // 1 is typically Drum Mode based on kEnumModeStrings
@@ -270,7 +313,46 @@ static void nt_grids_parameter_changed(_NT_algorithm *self_base, int p_idx)
       }
     }
   }
+  // Handle MIDI channel changes
+  if (p_idx == kParamMidiChannel)
+  {
+    int16_t old_channel = self->m_last_midi_channel;
+    int16_t new_channel = self->v[kParamMidiChannel];
+    if (old_channel > 0 && old_channel != new_channel)
+    {
+      send_all_midi_notes_off(self, old_channel);
+    }
+    self->m_last_midi_channel = new_channel;
+  }
+
   update_grids_from_params(self_base->v); // This is now active
+}
+
+// --- MIDI Helper Functions ---
+static uint32_t get_midi_destination(NtGridsAlgorithm *self)
+{
+  int dest_idx = self->v[kParamMidiDestination];
+  if (dest_idx < 0 || dest_idx > 4)
+    dest_idx = 0;
+  return kMidiDestinations[dest_idx];
+}
+
+static void send_midi_note_off(NtGridsAlgorithm *self, int trig_index, int16_t channel)
+{
+  if (!self->midi_note_active[trig_index])
+    return;
+  uint8_t note = (uint8_t)self->v[kParamMidiNote1 + trig_index];
+  uint32_t dest = get_midi_destination(self);
+  NT_sendMidi3ByteMessage(dest, 0x80 | (channel - 1), note, 0);
+  self->midi_note_active[trig_index] = false;
+}
+
+static void send_all_midi_notes_off(NtGridsAlgorithm *self, int16_t channel)
+{
+  for (int i = 0; i < 3; ++i)
+  {
+    send_midi_note_off(self, i, channel);
+  }
 }
 
 // Original Signature for step, but with new internal logic
@@ -319,6 +401,12 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
         float current_sample_reset_cv = busFrames[reset_bus_array_idx * num_frames_total + s_cv];
         if (current_sample_reset_cv > cv_threshold && self->prev_reset_cv_val <= cv_threshold)
         {
+          // Send MIDI Note Off for any active notes before reset
+          int16_t midi_channel = self->v[kParamMidiChannel];
+          if (midi_channel > 0)
+          {
+            send_all_midi_notes_off(self, midi_channel);
+          }
           PatternGenerator::Reset();
           for (int i = 0; i < 4; ++i)
           {
@@ -351,6 +439,30 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
       self->trigger_active_steps_remaining[2] = NUM_TRIGGER_STEPS;
     if (current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT)
       self->trigger_active_steps_remaining[3] = NUM_TRIGGER_STEPS;
+
+    // MIDI Note On for triggers that just fired
+    int16_t midi_channel = self->v[kParamMidiChannel];
+    if (midi_channel > 0)
+    {
+      bool accent = (current_pattern_state & nt_grids_port::grids::OUTPUT_BIT_ACCENT) != 0;
+      uint8_t velocity = accent ? (uint8_t)self->v[kParamMidiAccentVel] : (uint8_t)self->v[kParamMidiVelocity];
+      uint32_t dest = get_midi_destination(self);
+
+      for (int i = 0; i < 3; ++i)
+      {
+        if (current_pattern_state & (1 << i))
+        {
+          // Send Note Off first if retriggering
+          if (self->midi_note_active[i])
+          {
+            send_midi_note_off(self, i, midi_channel);
+          }
+          uint8_t note = (uint8_t)self->v[kParamMidiNote1 + i];
+          NT_sendMidi3ByteMessage(dest, 0x90 | (midi_channel - 1), note, velocity);
+          self->midi_note_active[i] = true;
+        }
+      }
+    }
   }
 
   // Main processing loop for each sample in the block
@@ -411,6 +523,15 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
     if (self->trigger_active_steps_remaining[i] > 0)
     {
       self->trigger_active_steps_remaining[i]--;
+      // Send MIDI Note Off when trigger expires (only for triggers 0-2)
+      if (self->trigger_active_steps_remaining[i] == 0 && i < 3)
+      {
+        int16_t midi_channel = self->v[kParamMidiChannel];
+        if (midi_channel > 0)
+        {
+          send_midi_note_off(self, i, midi_channel);
+        }
+      }
     }
   }
 }

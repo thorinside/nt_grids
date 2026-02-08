@@ -37,6 +37,14 @@ enum ParameterIndex
   kParamOutputTrig3Mode,
   kParamOutputAccent,
   kParamOutputAccentMode,
+  // MIDI Output
+  kParamMidiChannel,
+  kParamMidiDestination,
+  kParamMidiNote1,
+  kParamMidiNote2,
+  kParamMidiNote3,
+  kParamMidiVelocity,
+  kParamMidiAccentVel,
   kNumParameters // Represents the total number of parameters
 };
 
