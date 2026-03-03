@@ -147,7 +147,7 @@ void TakeoverPot::update(const _NT_uiData &data)
 
   if (is_drum_mode && m_has_alternate && m_pot_index == 2) // Pot R (Chaos)
   {
-    bool button_currently_pressed = (data.buttons & kNT_potButtonR);
+    bool button_currently_pressed = (data.controls & kNT_potButtonR);
     bool button_pressed_last_cycle = (data.lastButtons & kNT_potButtonR);
     bool button_just_became_pressed = button_currently_pressed && !button_pressed_last_cycle;
     bool button_just_became_released = !button_currently_pressed && button_pressed_last_cycle;

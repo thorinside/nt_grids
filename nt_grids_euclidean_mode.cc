@@ -106,7 +106,7 @@ void EuclideanModeStrategy::processPotsUI(NtGridsAlgorithm *self, const _NT_uiDa
   }
 
   // Handle Pot R button for toggling Length/Fill control focus in Euclidean mode
-  if ((data.buttons & kNT_potButtonR) && !(data.lastButtons & kNT_potButtonR))
+  if ((data.controls & kNT_potButtonR) && !(data.lastButtons & kNT_potButtonR))
   {
     m_euclidean_controls_length = !m_euclidean_controls_length;
     int32_t new_param_val = m_euclidean_controls_length ? 255 : 0;

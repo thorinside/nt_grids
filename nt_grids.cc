@@ -538,9 +538,9 @@ static void nt_grids_step(_NT_algorithm *self_base, float *busFrames, int numFra
 
 // --- Custom UI Callback Implementations (all static as per example) ---
 
-static bool nt_grids_has_custom_ui(_NT_algorithm *self_base)
+static uint32_t nt_grids_has_custom_ui(_NT_algorithm *self_base)
 {
-  return true;
+  return 1;
 }
 
 static void nt_grids_setup_ui(_NT_algorithm *self_base, _NT_float3 &pots)
@@ -578,7 +578,7 @@ static void nt_grids_custom_ui(_NT_algorithm *self_base, const _NT_uiData &data)
   NtGridsAlgorithm *self = static_cast<NtGridsAlgorithm *>(self_base);
 
   // --- Mode Toggle on Right Encoder Button Click (Press and Release) --- (NOW RE-ENABLING)
-  if ((data.buttons & kNT_encoderButtonR) && !(data.lastButtons & kNT_encoderButtonR))
+  if ((data.controls & kNT_encoderButtonR) && !(data.lastButtons & kNT_encoderButtonR))
   {
     // The parameterChanged callback will handle strategy deactivation/activation and calling onModeActivated.
     // It will also call update_grids_from_params.
