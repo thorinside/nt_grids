@@ -46,10 +46,31 @@ clean:
 	rm -rf $(BUILD_DIR) $(OUTPUT_DIR)
 	@echo "Cleaned build and output directories"
 
+# Native host build for nt_emu / VCV Rack (not part of the hardware build)
+HOST_CXX ?= clang++
+HOST_OS := $(shell uname -s)
+ifeq ($(HOST_OS),Darwin)
+	HOST_DYLIB_EXT := dylib
+	HOST_DYLIB_LDFLAGS := -dynamiclib -undefined dynamic_lookup
+else
+	HOST_DYLIB_EXT := so
+	HOST_DYLIB_LDFLAGS := -shared
+endif
+HOST_CFLAGS := -std=c++11 -fPIC -Os -Wall -fno-rtti -fno-exceptions \
+               -DNT_GRIDS_VERSION=\"$(VERSION)\"
+HOST_DYLIB := $(OUTPUT_DIR)/nt_grids.$(HOST_DYLIB_EXT)
+
+dylib: $(HOST_DYLIB)
+
+$(HOST_DYLIB): $(SOURCES)
+	mkdir -p $(OUTPUT_DIR)
+	$(HOST_CXX) $(HOST_CFLAGS) $(INCLUDES) $(HOST_DYLIB_LDFLAGS) -o $@ $(SOURCES)
+	@echo "Built host plugin: $@"
+
 # Target to check for undefined symbols in the plugin
 check: all
 	@echo "Checking for undefined symbols in $(OUTPUT_PLUGIN)..."
 	@arm-none-eabi-nm $(OUTPUT_PLUGIN) | grep ' U ' || echo "No undefined symbols found (or grep failed to find any)."
 	@echo "Note: If symbols are listed above, they are undefined in the plugin and expected to be provided by the host."
 
-.PHONY: all clean check 
+.PHONY: all clean check dylib 
